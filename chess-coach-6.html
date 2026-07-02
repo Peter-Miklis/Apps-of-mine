@@ -117,6 +117,12 @@
   .ptext{font-size:12px;color:var(--ink-dim);text-align:center;margin-top:6px}
 
   footer{text-align:center;font-size:10.5px;color:#6E644E;padding:14px 20px 26px;line-height:1.6}
+
+  /* promotion picker */
+  #promo{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;z-index:50}
+  #promo .box{background:var(--surface);border:1px solid var(--brass);border-radius:12px;padding:14px;display:flex;gap:10px}
+  #promo .box button{width:62px;height:62px;padding:6px}
+  #promo .box svg{width:100%;height:100%;filter:drop-shadow(1px 2px 2px rgba(15,8,0,.5))}
 </style>
 </head>
 <body>
@@ -209,6 +215,14 @@
     <button id="btnResign" onclick="resignGame()" disabled>Resign</button>
     <button id="btnAnalyze" onclick="startAnalysis()" disabled>Analyze game</button>
   </div>
+  <div class="controls" style="margin-top:8px">
+    <button id="btnPrev" onclick="navPrev()" title="Previous move">◀</button>
+    <button id="btnNext" onclick="navNext()" title="Next move">▶</button>
+    <button id="btnTakeback" onclick="takeback()" disabled>Takeback</button>
+    <button id="btnHint" onclick="requestHint()" disabled>Hint</button>
+    <button id="btnFlip" onclick="flipBoard()">Flip</button>
+    <button id="btnPGN" onclick="exportPGN()" disabled>PGN</button>
+  </div>
 
   <div class="panel">
     <h2>Settings</h2>
@@ -217,6 +231,14 @@
         <div class="opt on" data-v="w">White</div>
         <div class="opt" data-v="b">Black</div>
         <div class="opt" data-v="r">Random</div>
+      </div>
+    </div>
+    <div class="row"><span>Engine strength</span>
+      <div class="opts" id="optDiff">
+        <div class="opt" data-v="2">Easy</div>
+        <div class="opt" data-v="8">Medium</div>
+        <div class="opt" data-v="14">Hard</div>
+        <div class="opt on" data-v="20">Max</div>
       </div>
     </div>
     <div class="row"><span>Engine thinking time</span>
@@ -239,7 +261,8 @@
         <div class="opt" data-v="1">On</div>
       </div>
     </div>
-    <div class="hint">The engine plays at full strength. Pawns promote to queens automatically. Tap a piece, then tap its destination.</div>
+    <div class="row"><span>Record (casual games)</span><span id="statsLine" style="font-weight:700">–</span></div>
+    <div class="hint">Engine strength applies to play; analysis, hints and training always use full strength. Tap a piece, then tap its destination — promoting a pawn opens a piece picker. Settings are remembered on this device.</div>
   </div>
 </div>
 
@@ -286,6 +309,8 @@
   </div>
   <div id="reviewList"><div class="hint" style="text-align:center;padding:20px">Finish a game or lesson, then tap “Analyze game”.</div></div>
 </div>
+
+<div id="promo"><div class="box" id="promoBox"></div></div>
 
 <footer>
   Engine: Stockfish 10 (open source, GPL) · Rules: chess.js · Move labels are an open approximation of the familiar review categories, computed from win-probability swings.<br>
@@ -348,7 +373,7 @@ function handleLine(line){
   }
 }
 
-function goEval(fen, {depth, movetime, multipv = 1}){
+function goEval(fen, {depth, movetime, multipv = 1, skill = 20}){
   jobChain = jobChain.then(() => new Promise(resolve => {
     const g = { resolve, lines: {} };
     goActive = g;
@@ -361,6 +386,7 @@ function goEval(fen, {depth, movetime, multipv = 1}){
         resolve({ best: g.lines[1] ? g.lines[1].move : null, lines: g.lines });
       }
     }, budget);
+    esend("setoption name Skill Level value " + skill);
     esend("setoption name MultiPV value " + multipv);
     esend("position fen " + fen);
     let cmd = "go";
@@ -405,21 +431,62 @@ let mode = "free";                       // free | opening | middlegame | endgam
 let openingLine = null, openingIdx = 0, bookDone = false, openingName = "";
 let advCount = 0, advReached = false;
 let analysisToken = 0, analysisRunning = false;
+let sessionToken = 0;                    // bumps on every new session; stale async replies check it
+let navIdx = 0, bookTimer = null, resigned = false, pendingPromo = null;
 
 const FILES = ["a","b","c","d","e","f","g","h"];
 const PVAL = {p:1,n:3,b:3,r:5,q:9,k:99};
 
+const OPT_IDS = ["optColor","optDiff","optTime","optDepth","optVoice"];
 function wireOpts(id){
   const el = document.getElementById(id);
   el.addEventListener("click", e => {
     const t = e.target.closest(".opt"); if (!t) return;
     el.querySelectorAll(".opt").forEach(o => o.classList.remove("on"));
     t.classList.add("on");
+    saveOpts();
   });
 }
-["optColor","optTime","optDepth","optVoice"].forEach(wireOpts);
+OPT_IDS.forEach(wireOpts);
 const optVal = id => document.querySelector("#" + id + " .opt.on").dataset.v;
 const voiceOn = () => optVal("optVoice") === "1";
+
+/* ---------- persistence (settings + record) ---------- */
+function saveOpts(){
+  try{
+    const o = {};
+    OPT_IDS.forEach(id => o[id] = optVal(id));
+    localStorage.setItem("chesscoach-opts", JSON.stringify(o));
+  }catch(e){}
+}
+function restoreOpts(){
+  try{
+    const o = JSON.parse(localStorage.getItem("chesscoach-opts") || "{}");
+    OPT_IDS.forEach(id => {
+      if (!o[id]) return;
+      const el = document.querySelector("#" + id + " .opt[data-v='" + o[id] + "']");
+      if (el){
+        document.querySelectorAll("#" + id + " .opt").forEach(x => x.classList.remove("on"));
+        el.classList.add("on");
+      }
+    });
+  }catch(e){}
+}
+restoreOpts();
+
+function loadStats(){
+  try{ return JSON.parse(localStorage.getItem("chesscoach-stats")) || {w:0,l:0,d:0}; }
+  catch(e){ return {w:0,l:0,d:0}; }
+}
+function recordResult(r){
+  const s = loadStats(); s[r]++;
+  try{ localStorage.setItem("chesscoach-stats", JSON.stringify(s)); }catch(e){}
+  renderStats();
+}
+function renderStats(){
+  const s = loadStats();
+  document.getElementById("statsLine").textContent = s.w + "W · " + s.l + "L · " + s.d + "D";
+}
 
 /* ---------- rendering ---------- */
 function renderBoard(){
@@ -576,7 +643,36 @@ function makeUserMove(from, to){
     routeReply();
     return;
   }
+  if (needsPromotion(from, to)){ openPromo(from, to); return; }
   const mv = game.move({from, to, promotion: "q"});
+  if (!mv) return;
+  afterMove(mv);
+  if (!gameOver) engineMove();
+}
+
+/* ---------- pawn promotion picker ---------- */
+function needsPromotion(from, to){
+  const p = game.get(from);
+  return !!p && p.type === "p" && (to[1] === "8" || to[1] === "1");
+}
+function openPromo(from, to){
+  pendingPromo = {from, to, token: sessionToken};
+  const box = document.getElementById("promoBox");
+  box.innerHTML = "";
+  ["q","r","b","n"].forEach(t => {
+    const b = document.createElement("button");
+    b.innerHTML = '<svg class="pc-' + userColor + '" viewBox="0 0 45 45">' +
+      '<use href="#pc-' + t + '" xlink:href="#pc-' + t + '" width="45" height="45"/></svg>';
+    b.onclick = () => finishPromo(t);
+    box.appendChild(b);
+  });
+  document.getElementById("promo").style.display = "flex";
+}
+function finishPromo(t){
+  document.getElementById("promo").style.display = "none";
+  const pp = pendingPromo; pendingPromo = null;
+  if (!pp || pp.token !== sessionToken || !gameActive || gameOver) return;
+  const mv = game.move({from: pp.from, to: pp.to, promotion: t});
   if (!mv) return;
   afterMove(mv);
   if (!gameOver) engineMove();
@@ -586,7 +682,7 @@ function routeReply(){
   if (gameOver) return;
   if (mode === "opening" && !bookDone){
     if (openingIdx >= openingLine.length){ bookLineComplete(); return; }
-    if (game.turn() !== userColor){ setTimeout(playBookReply, 550); return; }
+    if (game.turn() !== userColor){ bookTimer = setTimeout(playBookReply, 550); return; }
     promptBookMove();
   }
 }
@@ -620,10 +716,14 @@ function bookLineComplete(){
 }
 
 async function engineMove(){
+  const tok = sessionToken;
   engineThinking = true;
+  syncButtons();
   setStatus(modePrefix() + "Engine is thinking…");
-  const res = await goEval(game.fen(), {movetime: +optVal("optTime")});
+  const res = await goEval(game.fen(), {movetime: +optVal("optTime"), skill: +optVal("optDiff")});
+  if (tok !== sessionToken) return;   // a new session started while we were thinking
   engineThinking = false;
+  syncButtons();
   if (!gameActive || gameOver) return;
   if (res.lines[1]){
     const l = res.lines[1];
@@ -658,8 +758,10 @@ function modePrefix(){
 function afterMove(mv){
   sanHistory.push(mv);
   fensHistory.push(game.fen());
+  navIdx = fensHistory.length - 1;
   lastMove = {from: mv.from, to: mv.to};
-  selected = null; legalTargets = [];
+  selected = null; legalTargets = []; bestHint = null;
+  syncButtons();
   renderBoard();
   renderCaptured();
   if (!browsing) playMoveSound(mv);
@@ -682,29 +784,46 @@ function checkGameEnd(){
     const winner = game.turn() === "w" ? "Black" : "White";
     msg = "<b>Checkmate — " + winner + " wins.</b>";
     setEvalBar(winner === "White" ? 10000 : -10000);
+    if (mode === "free") recordResult((game.turn() === userColor) ? "l" : "w");
+  } else {
+    if (game.in_stalemate())                 msg = "<b>Draw</b> — stalemate.";
+    else if (game.in_threefold_repetition()) msg = "<b>Draw</b> — threefold repetition.";
+    else if (game.insufficient_material())   msg = "<b>Draw</b> — insufficient material.";
+    else                                     msg = "<b>Draw</b> — fifty-move rule.";
+    if (mode === "free") recordResult("d");
   }
-  else if (game.in_stalemate())            msg = "<b>Draw</b> — stalemate.";
-  else if (game.in_threefold_repetition()) msg = "<b>Draw</b> — threefold repetition.";
-  else if (game.insufficient_material())   msg = "<b>Draw</b> — insufficient material.";
-  else                                     msg = "<b>Draw</b> — fifty-move rule.";
   setStatus(msg + " Tap <b>Analyze game</b> for the review.");
   document.getElementById("btnAnalyze").disabled = sanHistory.length < 2;
   document.getElementById("btnResign").disabled = true;
+  syncButtons();
+}
+
+function syncButtons(){
+  const live = gameActive && !gameOver && !engineThinking && !browsing;
+  document.getElementById("btnTakeback").disabled = !live || sanHistory.length === 0;
+  document.getElementById("btnHint").disabled = !live || game.turn() !== userColor;
+  document.getElementById("btnPGN").disabled = sanHistory.length === 0;
 }
 
 function resetSession(startFen){
   stopSpeaking();
   abortAnalysis();
+  sessionToken++;
+  clearTimeout(bookTimer);
+  pendingPromo = null;
+  document.getElementById("promo").style.display = "none";
   if (startFen) game.load(startFen); else game.reset();
   gameActive = true; gameOver = false; browsing = false;
+  engineThinking = false; resigned = false;
   selected = null; legalTargets = []; lastMove = null; bestHint = null;
-  sanHistory = []; fensHistory = [game.fen()];
+  sanHistory = []; fensHistory = [game.fen()]; navIdx = 0;
   advCount = 0; advReached = false; bookDone = false; openingIdx = 0;
   reviewData = null; renderReviewPlaceholder();
   document.getElementById("btnResign").disabled = false;
   document.getElementById("btnAnalyze").disabled = true;
   setEvalBar(0);
   renderCaptured();
+  syncButtons();
 }
 
 function newGame(){
@@ -729,10 +848,132 @@ function requireEngine(){
 }
 function resignGame(){
   if (!gameActive) return;
-  gameActive = false; gameOver = true;
+  gameActive = false; gameOver = true; resigned = true;
+  if (mode === "free" && sanHistory.length >= 2) recordResult("l");
   setStatus("<b>Session ended.</b> Tap <b>Analyze game</b> for the review.");
   document.getElementById("btnAnalyze").disabled = sanHistory.length < 2;
   document.getElementById("btnResign").disabled = true;
+  syncButtons();
+}
+
+/* =====================================================
+   Takeback · Hint · Flip · Move navigation · PGN
+===================================================== */
+function takeback(){
+  if (!gameActive || gameOver || engineThinking || browsing || !sanHistory.length) return;
+  clearTimeout(bookTimer);
+  // on your turn remove the engine's reply plus your move; otherwise just your move
+  const n = (game.turn() === userColor && sanHistory.length >= 2) ? 2 : 1;
+  for (let k = 0; k < n; k++){
+    sanHistory.pop(); fensHistory.pop();
+    if (mode === "opening" && !bookDone && openingIdx > 0) openingIdx--;
+  }
+  game.load(fensHistory[fensHistory.length - 1]);
+  const tail = sanHistory[sanHistory.length - 1];
+  lastMove = tail ? {from: tail.from, to: tail.to} : null;
+  selected = null; legalTargets = []; bestHint = null;
+  navIdx = fensHistory.length - 1;
+  renderBoard(); renderCaptured(); syncButtons();
+  if (mode === "opening" && !bookDone) promptBookMove();
+  else setStatus(modePrefix() + "<b>Your move</b> — takeback done.");
+}
+
+async function requestHint(){
+  if (!gameActive || gameOver || engineThinking || browsing) return;
+  if (game.turn() !== userColor) return;
+  if (mode === "opening" && !bookDone){ showBookHint(); return; }
+  const tok = sessionToken;
+  setStatus(modePrefix() + "Looking for a strong move…");
+  const res = await goEval(game.fen(), {movetime: 900});
+  if (tok !== sessionToken || !gameActive || gameOver || game.turn() !== userColor) return;
+  if (res.best){
+    bestHint = {from: res.best.slice(0,2), to: res.best.slice(2,4)};
+    renderBoard();
+    setStatus(modePrefix() + "Hint highlighted in green — <b>your move</b>.");
+  } else setStatus(modePrefix() + "<b>Your move</b>");
+}
+
+function flipBoard(){
+  flipped = !flipped;
+  renderBoard();
+  renderCaptured(browsing ? navIdx : undefined);
+}
+
+function navTo(idx){
+  if (!fensHistory.length || engineThinking || analysisRunning) return;
+  idx = Math.max(0, Math.min(fensHistory.length - 1, idx));
+  navIdx = idx;
+  const last = fensHistory.length - 1;
+  if (idx === last){ if (browsing) exitBrowse(); return; }
+  browsing = true;
+  game.load(fensHistory[idx]);
+  const mv = idx > 0 ? sanHistory[idx - 1] : null;
+  lastMove = mv ? {from: mv.from, to: mv.to} : null;
+  bestHint = null; selected = null; legalTargets = [];
+  renderBoard(); renderCaptured(idx); syncButtons();
+  setStatus("Viewing move " + idx + " of " + last +
+            ' · <a href="#" onclick="navTo(' + last + ');return false">back to live</a>');
+}
+function navPrev(){ navTo((browsing ? navIdx : fensHistory.length - 1) - 1); }
+function navNext(){ if (browsing) navTo(navIdx + 1); }
+document.addEventListener("keydown", e => {
+  if (e.key === "ArrowLeft") navPrev();
+  else if (e.key === "ArrowRight") navNext();
+});
+
+function buildPGN(){
+  const start = fensHistory[0];
+  const std = start === new Chess().fen();
+  const g = std ? new Chess() : new Chess(start);
+  sanHistory.forEach(m => g.move(m.san));
+  let res = "*";
+  if (g.in_checkmate()) res = sanHistory[sanHistory.length - 1].color === "w" ? "1-0" : "0-1";
+  else if (g.game_over()) res = "1/2-1/2";
+  else if (resigned) res = userColor === "w" ? "0-1" : "1-0";
+  const hdr = [
+    '[Event "Chess Coach — ' + mode + '"]',
+    '[Site "Chess Coach app"]',
+    '[Date "' + new Date().toISOString().slice(0,10).replace(/-/g, ".") + '"]',
+    '[White "' + (userColor === "w" ? "You" : "Engine") + '"]',
+    '[Black "' + (userColor === "b" ? "You" : "Engine") + '"]',
+    '[Result "' + res + '"]'
+  ];
+  if (!std){ hdr.push('[SetUp "1"]'); hdr.push('[FEN "' + start + '"]'); }
+  let num = +start.split(" ")[5] || 1, txt = "";
+  sanHistory.forEach((m, i) => {
+    if (m.color === "w") txt += num + ". " + m.san + " ";
+    else { txt += (i === 0 ? num + "... " : "") + m.san + " "; num++; }
+  });
+  return hdr.join("\n") + "\n\n" + txt.trim() + " " + res;
+}
+async function exportPGN(){
+  if (!sanHistory.length) return;
+  const pgn = buildPGN();
+  try{
+    await navigator.clipboard.writeText(pgn);
+    setStatus("PGN copied to clipboard — paste it into any chess site or app.");
+  }catch(e){
+    if (navigator.share){
+      try{ await navigator.share({title: "Chess Coach game", text: pgn}); return; }catch(_){}
+    }
+    const ta = document.createElement("textarea");
+    ta.value = pgn; document.body.appendChild(ta); ta.select();
+    try{ document.execCommand("copy"); setStatus("PGN copied to clipboard."); }
+    catch(_){ setStatus("Couldn't copy the PGN automatically."); }
+    ta.remove();
+  }
+}
+
+function retryFrom(i){
+  if (!reviewData) return;
+  const it = reviewData.items[i];
+  const fen = fensHistory[i];
+  mode = "free";
+  userColor = it.mover; flipped = userColor === "b";
+  resetSession(fen);
+  renderBoard();
+  showScreen("play");
+  setStatus("<b>Retry:</b> find a better move than " + it.mv.san + ".");
 }
 
 /* =====================================================
@@ -788,7 +1029,7 @@ function startOpening(i, side){
   renderBoard();
   showScreen("play");
   if (game.turn() === userColor) promptBookMove();
-  else setTimeout(playBookReply, 550);
+  else bookTimer = setTimeout(playBookReply, 550);
 }
 
 /* =====================================================
@@ -798,6 +1039,7 @@ async function startMiddlegame(){
   if (!requireEngine()) return;
   mode = "middlegame";
   resetSession();
+  const tok = sessionToken;
   gameActive = false;                 // lock board during generation
   showScreen("play");
   flipped = false; renderBoard();
@@ -805,6 +1047,7 @@ async function startMiddlegame(){
   for (let ply = 0; ply < target; ply++){
     setStatus("⚔️ Generating middlegame… " + (ply + 1) + "/" + target);
     const r = await goEval(game.fen(), {depth: 8, movetime: 300, multipv: 3});
+    if (tok !== sessionToken) return;   // user started something else mid-generation
     const cands = [];
     for (let k = 1; k <= 3; k++){
       const L = r.lines[k];
@@ -821,10 +1064,12 @@ async function startMiddlegame(){
     renderBoard();
   }
   // fresh session starts HERE — the review will cover only your play
+  if (tok !== sessionToken) return;
   userColor = game.turn();
   flipped = userColor === "b";
-  sanHistory = []; fensHistory = [game.fen()];
+  sanHistory = []; fensHistory = [game.fen()]; navIdx = 0;
   gameActive = true; gameOver = false;
+  syncButtons();
   renderBoard();
   renderCaptured();
   setStatus("⚔️ <b>Your move</b> — you play " + (userColor === "w" ? "White" : "Black") +
@@ -1121,6 +1366,7 @@ function renderReview(){
 
 function showPosition(i){
   browsing = true;
+  navIdx = i + 1;
   const it = reviewData.items[i];
   game.load(fensHistory[i + 1]);
   lastMove = {from: it.mv.from, to: it.mv.to};
@@ -1131,12 +1377,16 @@ function showPosition(i){
   showScreen("play");
   renderBoard();
   renderCaptured(i + 1);
+  syncButtons();
+  const retry = it.mover ? ' · <a href="#" onclick="retryFrom(' + i + ');return false">retry this move</a>' : "";
   setStatus("Reviewing <b>" + it.mv.san + "</b> — " + QMETA[it.q].label +
-            (bestHint ? " (green: engine's choice)" : "") +
+            (bestHint ? " (green: engine's choice)" : "") + retry +
             ' · <a href="#" onclick="exitBrowse();return false">back to final position</a>');
 }
 function exitBrowse(){
   browsing = false; bestHint = null;
+  navIdx = fensHistory.length - 1;
+  syncButtons();
   game.load(fensHistory[fensHistory.length - 1]);
   lastMove = sanHistory.length ? {from: sanHistory[sanHistory.length-1].from, to: sanHistory[sanHistory.length-1].to} : null;
   renderBoard();
@@ -1212,6 +1462,7 @@ function showScreen(name){
 
 renderOpenings();
 renderEndgames();
+renderStats();
 renderBoard();
 </script>
 </body>
