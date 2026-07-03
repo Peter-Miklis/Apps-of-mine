@@ -118,6 +118,12 @@
 
   footer{text-align:center;font-size:10.5px;color:#6E644E;padding:14px 20px 26px;line-height:1.6}
 
+  /* move list */
+  #moveList{font-size:13.5px;line-height:2}
+  .mvnum{color:var(--ink-dim);margin-right:1px;font-size:12px}
+  .mvtok{padding:2px 5px;border-radius:5px}
+  .mvtok.cur{background:var(--surface2);color:var(--brass);font-weight:700}
+
   /* promotion picker */
   #promo{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;z-index:50}
   #promo .box{background:var(--surface);border:1px solid var(--brass);border-radius:12px;padding:14px;display:flex;gap:10px}
@@ -224,6 +230,11 @@
     <button id="btnPGN" onclick="exportPGN()" disabled>PGN</button>
   </div>
 
+  <div class="panel" id="moveListPanel" style="display:none">
+    <h2>Moves <span id="openingLabel" style="color:var(--ink-dim);font-size:12px;font-weight:400"></span></h2>
+    <div id="moveList"></div>
+  </div>
+
   <div class="panel">
     <h2>Settings</h2>
     <div class="row"><span>Play as</span>
@@ -255,6 +266,18 @@
         <div class="opt" data-v="15">Deep</div>
       </div>
     </div>
+    <div class="row"><span>Coach alerts (mistake warnings)</span>
+      <div class="opts" id="optCoach">
+        <div class="opt" data-v="0">Off</div>
+        <div class="opt on" data-v="1">On</div>
+      </div>
+    </div>
+    <div class="row"><span>Move sounds</span>
+      <div class="opts" id="optSound">
+        <div class="opt" data-v="0">Off</div>
+        <div class="opt on" data-v="1">On</div>
+      </div>
+    </div>
     <div class="row"><span>Speak moves during play</span>
       <div class="opts" id="optVoice">
         <div class="opt on" data-v="0">Off</div>
@@ -268,6 +291,24 @@
 
 <!-- ================= TRAIN ================= -->
 <div class="screen" id="screen-train">
+  <div class="panel">
+    <h2>Tactics — checkmate puzzles</h2>
+    <div class="hint" style="margin:0 0 8px">Find the forced mate — every correct solution is accepted. Solve cleanly (no wrong tries) to grow your streak.</div>
+    <div class="row" style="margin:0">
+      <span id="puzzleStats">Streak 0 · Best 0 · Solved 0</span>
+      <button class="mini primary" onclick="startMatePuzzle()">Start</button>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Drill your mistakes</h2>
+    <div class="hint" style="margin:0 0 8px">Every mistake and blunder from your analyzed games becomes a personal puzzle: find the move the engine wanted instead. Solve one cleanly to clear it from the list.</div>
+    <div class="row" style="margin:0">
+      <span id="mistakeCount">No mistakes saved yet — analyze a game first.</span>
+      <button class="mini primary" onclick="startMistakeDrill()">Drill</button>
+    </div>
+  </div>
+
   <div class="panel">
     <h2>Openings — guided lines</h2>
     <div class="hint" style="margin:0 0 6px">Play the book move each turn; the other side answers from theory. When the line ends, keep playing against the full-strength engine, then analyze.</div>
@@ -301,6 +342,12 @@
   <div id="accuracyCard">
     <div class="acc"><div class="num" id="accW">–</div><div class="lbl">White accuracy</div></div>
     <div class="acc"><div class="num" id="accB">–</div><div class="lbl">Black accuracy</div></div>
+  </div>
+  <div id="phaseLine" class="hint" style="display:none;text-align:center;margin:0 auto 8px;max-width:448px"></div>
+  <div class="panel" id="evalGraphWrap" style="display:none;padding:10px;margin:0 auto 10px;max-width:448px">
+    <svg id="evalGraph" viewBox="0 0 440 70" preserveAspectRatio="none"
+         style="width:100%;height:70px;display:block;border-radius:6px" onclick="evalGraphTap(event)"></svg>
+    <div class="hint" style="text-align:center;margin-top:6px">Win chances by move (white = White ahead) — tap to jump to a position. Dots mark errors.</div>
   </div>
   <div id="qualitySummary"></div>
   <div class="controls" style="margin-bottom:12px">
@@ -433,11 +480,13 @@ let advCount = 0, advReached = false;
 let analysisToken = 0, analysisRunning = false;
 let sessionToken = 0;                    // bumps on every new session; stale async replies check it
 let navIdx = 0, bookTimer = null, resigned = false, pendingPromo = null;
+let curOpening = "", lastCpWhite = null, pendingEngineMove = null, puzzle = null;
+const START_POS = game.fen();
 
 const FILES = ["a","b","c","d","e","f","g","h"];
 const PVAL = {p:1,n:3,b:3,r:5,q:9,k:99};
 
-const OPT_IDS = ["optColor","optDiff","optTime","optDepth","optVoice"];
+const OPT_IDS = ["optColor","optDiff","optTime","optDepth","optCoach","optSound","optVoice"];
 function wireOpts(id){
   const el = document.getElementById(id);
   el.addEventListener("click", e => {
@@ -487,6 +536,68 @@ function renderStats(){
   const s = loadStats();
   document.getElementById("statsLine").textContent = s.w + "W · " + s.l + "L · " + s.d + "D";
 }
+
+/* ---------- opening name detection ---------- */
+const ECO_NAMES = [
+ ["e4 e5 Nf3 Nc6 Bb5","Ruy Lopez"],
+ ["e4 e5 Nf3 Nc6 Bc4 Bc5","Italian Game"],
+ ["e4 e5 Nf3 Nc6 Bc4 Nf6","Two Knights Defense"],
+ ["e4 e5 Nf3 Nc6 d4","Scotch Game"],
+ ["e4 e5 Nf3 Nf6","Petrov Defense"],
+ ["e4 e5 Nf3 d6","Philidor Defense"],
+ ["e4 e5 Nc3","Vienna Game"],
+ ["e4 e5 f4","King's Gambit"],
+ ["e4 e5 Bc4","Bishop's Opening"],
+ ["e4 c5 Nf3 d6 d4 cxd4 Nxd4 Nf6 Nc3 a6","Sicilian Najdorf"],
+ ["e4 c5 Nf3 d6 d4 cxd4 Nxd4 Nf6 Nc3 g6","Sicilian Dragon"],
+ ["e4 c5 Nf3 Nc6","Sicilian Defense"],
+ ["e4 c5 Nf3 e6","Sicilian Defense"],
+ ["e4 c5 c3","Sicilian Alapin"],
+ ["e4 c5 Nc3","Sicilian, Closed"],
+ ["e4 c5","Sicilian Defense"],
+ ["e4 e6","French Defense"],
+ ["e4 c6","Caro-Kann Defense"],
+ ["e4 d5","Scandinavian Defense"],
+ ["e4 d6 d4 Nf6","Pirc Defense"],
+ ["e4 Nf6","Alekhine Defense"],
+ ["e4 g6","Modern Defense"],
+ ["d4 d5 c4 e6","Queen's Gambit Declined"],
+ ["d4 d5 c4 dxc4","Queen's Gambit Accepted"],
+ ["d4 d5 c4 c6","Slav Defense"],
+ ["d4 d5 c4","Queen's Gambit"],
+ ["d4 d5 Bf4","London System"],
+ ["d4 d5 Nf3 Nf6 Bf4","London System"],
+ ["d4 Nf6 c4 e6 Nc3 Bb4","Nimzo-Indian Defense"],
+ ["d4 Nf6 c4 e6 Nf3 b6","Queen's Indian Defense"],
+ ["d4 Nf6 c4 g6 Nc3 d5","Grünfeld Defense"],
+ ["d4 Nf6 c4 g6","King's Indian Defense"],
+ ["d4 Nf6 c4 c5","Benoni Defense"],
+ ["d4 f5","Dutch Defense"],
+ ["d4 Nf6 Bg5","Trompowsky Attack"],
+ ["c4 e5","English Opening (Reversed Sicilian)"],
+ ["c4","English Opening"],
+ ["Nf3 d5 g3","King's Indian Attack"],
+ ["Nf3","Réti Opening"],
+ ["e4 e5","King's Pawn Game"],
+ ["d4 d5","Queen's Pawn Game"],
+ ["f4","Bird's Opening"],
+ ["b3","Nimzo-Larsen Attack"],
+ ["g3","Hungarian Opening"]
+];
+function detectOpening(){
+  if (fensHistory[0] !== START_POS || !sanHistory.length || sanHistory.length > 30) return;
+  const sans = sanHistory.map(m => stripSan(m.san));
+  let best = "", bestLen = 0;
+  ECO_NAMES.forEach(([line, name]) => {
+    const toks = line.split(" ");
+    if (toks.length <= sans.length && toks.length > bestLen && toks.every((t, i) => t === sans[i])){
+      best = name; bestLen = toks.length;
+    }
+  });
+  if (best) curOpening = best;
+}
+const openSuffix = () => curOpening && mode === "free"
+  ? ' · <span style="color:var(--ink-dim)">' + curOpening + "</span>" : "";
 
 /* ---------- rendering ---------- */
 function renderBoard(){
@@ -576,6 +687,7 @@ function knock(freq, dur, gain, delay){
   n.start(t);
 }
 function playMoveSound(mv){
+  if (optVal("optSound") !== "1") return;
   if (mv.san.includes("#"))       { knock(170,.11,.65,0); knock(115,.16,.7,.15); return; } // final placement, weightier
   if (mv.san.startsWith("O-O"))   { knock(200,.08,.5,0);  knock(175,.09,.55,.12); return; } // two pieces set down
   if (mv.captured)                { knock(230,.04,.45,0); knock(140,.13,.8,.035); return; } // clack of pieces meeting, then set down
@@ -625,6 +737,7 @@ function tapSquare(sqName){
 const stripSan = s => s.replace(/[+#]/g, "");
 
 function makeUserMove(from, to){
+  if (mode === "puzzle" && puzzle){ puzzleMove(from, to); return; }
   // Guided opening: enforce the book move while the line lasts
   if (mode === "opening" && !bookDone){
     const expected = openingLine[openingIdx];
@@ -725,16 +838,48 @@ async function engineMove(){
   engineThinking = false;
   syncButtons();
   if (!gameActive || gameOver) return;
+  let cpWhite = null;
   if (res.lines[1]){
     const l = res.lines[1];
     const cpSide = l.mate !== null ? (l.mate > 0 ? 10000 : -10000) : l.cp;
-    const cpWhite = game.turn() === "w" ? cpSide : -cpSide;
+    cpWhite = game.turn() === "w" ? cpSide : -cpSide;
     setEvalBar(cpWhite);
     trackAdvantage(cpWhite);
   }
   if (!res.best) return;
-  const mv = game.move({from: res.best.slice(0,2), to: res.best.slice(2,4), promotion: res.best[4] || "q"});
+  // coach alert: compare with the eval before your move (from the engine's previous think)
+  if (optVal("optCoach") === "1" && cpWhite !== null && lastCpWhite !== null &&
+      !(mode === "opening" && !bookDone) && sanHistory.length &&
+      sanHistory[sanHistory.length - 1].color === userColor){
+    const beforeU = userColor === "w" ? lastCpWhite : -lastCpWhite;
+    const nowU    = userColor === "w" ? cpWhite     : -cpWhite;
+    const drop = winPct(beforeU) - winPct(nowU);
+    if (drop >= 12){
+      pendingEngineMove = {uci: res.best, token: sessionToken, cpWhite};
+      setStatus("⚠️ <b>Coach:</b> that looks like a mistake — your win chances dropped " +
+        Math.round(drop) + "%. " +
+        '<a href="#" onclick="coachTakeback();return false"><b>Take it back</b></a> · ' +
+        '<a href="#" onclick="coachContinue();return false">Play on</a>');
+      syncButtons();
+      return;
+    }
+  }
+  lastCpWhite = cpWhite !== null ? cpWhite : lastCpWhite;
+  applyEngineUci(res.best);
+}
+function applyEngineUci(uci){
+  const mv = game.move({from: uci.slice(0,2), to: uci.slice(2,4), promotion: uci[4] || "q"});
   if (mv) afterMove(mv);
+}
+function coachTakeback(){
+  pendingEngineMove = null;
+  takeback();
+}
+function coachContinue(){
+  const p = pendingEngineMove; pendingEngineMove = null;
+  if (!p || p.token !== sessionToken || !gameActive || gameOver) return;
+  lastCpWhite = p.cpWhite;
+  applyEngineUci(p.uci);
 }
 
 function trackAdvantage(cpWhite){
@@ -764,16 +909,88 @@ function afterMove(mv){
   syncButtons();
   renderBoard();
   renderCaptured();
+  detectOpening();
+  renderMoveList();
   if (!browsing) playMoveSound(mv);
   if (voiceOn() && !browsing) speak(sanToSpeech(mv.san));
   checkGameEnd();
+  autosave();
   if (!gameOver){
-    if (mode === "opening" && !bookDone){
+    if (mode === "puzzle"){ /* status is driven by the puzzle flow */ }
+    else if (mode === "opening" && !bookDone){
       if (game.turn() === userColor) promptBookMove();
     } else {
-      setStatus(game.turn() === userColor ? modePrefix() + "<b>Your move</b>" : modePrefix() + "Engine is thinking…");
+      setStatus(game.turn() === userColor
+        ? modePrefix() + "<b>Your move</b>" + openSuffix()
+        : modePrefix() + "Engine is thinking…");
     }
   }
+}
+
+/* ---------- move list ---------- */
+function renderMoveList(){
+  const panel = document.getElementById("moveListPanel");
+  if (!sanHistory.length){ panel.style.display = "none"; return; }
+  panel.style.display = "block";
+  document.getElementById("openingLabel").textContent = curOpening;
+  const cur = browsing ? navIdx : sanHistory.length;
+  let h = "";
+  sanHistory.forEach((m, i) => {
+    const num = Math.floor(i / 2) + 1;
+    if (m.color === "w") h += '<span class="mvnum">' + num + ".</span>";
+    else if (i === 0)    h += '<span class="mvnum">' + num + "…</span>";
+    h += '<span class="mvtok' + (cur === i + 1 ? " cur" : "") +
+         '" onclick="navTo(' + (i + 1) + ')">' + m.san + "</span> ";
+  });
+  document.getElementById("moveList").innerHTML = h;
+}
+
+/* ---------- autosave / resume ---------- */
+function autosave(){
+  if (mode === "opening" || mode === "puzzle" || !gameActive || gameOver) return;
+  try{
+    localStorage.setItem("chesscoach-game", JSON.stringify({
+      fen0: fensHistory[0], sans: sanHistory.map(m => m.san), userColor, mode
+    }));
+  }catch(e){}
+}
+function clearAutosave(){ try{ localStorage.removeItem("chesscoach-game"); }catch(e){} }
+function offerResume(){
+  try{
+    const s = JSON.parse(localStorage.getItem("chesscoach-game"));
+    if (s && s.sans && s.sans.length >= 2)
+      setStatus("You have an unfinished game (" + s.sans.length + " moves played). " +
+                '<a href="#" onclick="resumeGame();return false"><b>Resume it</b></a> or start a new one below.');
+  }catch(e){}
+}
+function resumeGame(){
+  if (!requireEngine()) return;
+  let s = null;
+  try{ s = JSON.parse(localStorage.getItem("chesscoach-game")); }catch(e){}
+  if (!s || !s.sans) return;
+  mode = s.mode || "free";
+  userColor = s.userColor || "w";
+  flipped = userColor === "b";
+  resetSession(s.fen0 === START_POS ? undefined : s.fen0);
+  s.sans.forEach(san => {
+    const mv = game.move(san);
+    if (mv){ sanHistory.push(mv); fensHistory.push(game.fen()); }
+  });
+  navIdx = fensHistory.length - 1;
+  const tail = sanHistory[sanHistory.length - 1];
+  lastMove = tail ? {from: tail.from, to: tail.to} : null;
+  detectOpening();
+  renderBoard(); renderCaptured(); renderMoveList(); syncButtons();
+  checkGameEnd();
+  if (!gameOver){
+    if (game.turn() === userColor)
+      setStatus(modePrefix() + "<b>Your move</b> — game resumed." + openSuffix());
+    else engineMove();
+  }
+}
+function confirmAbandon(){
+  return !(gameActive && !gameOver && mode !== "puzzle" && sanHistory.length >= 2) ||
+         confirm("Abandon the game in progress?");
 }
 
 function checkGameEnd(){
@@ -792,7 +1009,10 @@ function checkGameEnd(){
     else                                     msg = "<b>Draw</b> — fifty-move rule.";
     if (mode === "free") recordResult("d");
   }
-  setStatus(msg + " Tap <b>Analyze game</b> for the review.");
+  if (mode !== "puzzle"){
+    setStatus(msg + " Tap <b>Analyze game</b> for the review.");
+    clearAutosave();
+  }
   document.getElementById("btnAnalyze").disabled = sanHistory.length < 2;
   document.getElementById("btnResign").disabled = true;
   syncButtons();
@@ -800,7 +1020,7 @@ function checkGameEnd(){
 
 function syncButtons(){
   const live = gameActive && !gameOver && !engineThinking && !browsing;
-  document.getElementById("btnTakeback").disabled = !live || sanHistory.length === 0;
+  document.getElementById("btnTakeback").disabled = !live || sanHistory.length === 0 || mode === "puzzle";
   document.getElementById("btnHint").disabled = !live || game.turn() !== userColor;
   document.getElementById("btnPGN").disabled = sanHistory.length === 0;
 }
@@ -818,6 +1038,8 @@ function resetSession(startFen){
   selected = null; legalTargets = []; lastMove = null; bestHint = null;
   sanHistory = []; fensHistory = [game.fen()]; navIdx = 0;
   advCount = 0; advReached = false; bookDone = false; openingIdx = 0;
+  curOpening = ""; lastCpWhite = null; pendingEngineMove = null; puzzle = null;
+  renderMoveList();
   reviewData = null; renderReviewPlaceholder();
   document.getElementById("btnResign").disabled = false;
   document.getElementById("btnAnalyze").disabled = true;
@@ -828,6 +1050,7 @@ function resetSession(startFen){
 
 function newGame(){
   if (!requireEngine()) return;
+  if (!confirmAbandon()) return;
   mode = "free";
   const c = optVal("optColor");
   userColor = c === "r" ? (Math.random() < .5 ? "w" : "b") : c;
@@ -849,6 +1072,8 @@ function requireEngine(){
 function resignGame(){
   if (!gameActive) return;
   gameActive = false; gameOver = true; resigned = true;
+  pendingEngineMove = null;
+  if (mode !== "puzzle") clearAutosave();
   if (mode === "free" && sanHistory.length >= 2) recordResult("l");
   setStatus("<b>Session ended.</b> Tap <b>Analyze game</b> for the review.");
   document.getElementById("btnAnalyze").disabled = sanHistory.length < 2;
@@ -860,8 +1085,9 @@ function resignGame(){
    Takeback · Hint · Flip · Move navigation · PGN
 ===================================================== */
 function takeback(){
-  if (!gameActive || gameOver || engineThinking || browsing || !sanHistory.length) return;
+  if (!gameActive || gameOver || engineThinking || browsing || !sanHistory.length || mode === "puzzle") return;
   clearTimeout(bookTimer);
+  pendingEngineMove = null;
   // on your turn remove the engine's reply plus your move; otherwise just your move
   const n = (game.turn() === userColor && sanHistory.length >= 2) ? 2 : 1;
   for (let k = 0; k < n; k++){
@@ -873,7 +1099,8 @@ function takeback(){
   lastMove = tail ? {from: tail.from, to: tail.to} : null;
   selected = null; legalTargets = []; bestHint = null;
   navIdx = fensHistory.length - 1;
-  renderBoard(); renderCaptured(); syncButtons();
+  renderBoard(); renderCaptured(); renderMoveList(); syncButtons();
+  autosave();
   if (mode === "opening" && !bookDone) promptBookMove();
   else setStatus(modePrefix() + "<b>Your move</b> — takeback done.");
 }
@@ -881,6 +1108,7 @@ function takeback(){
 async function requestHint(){
   if (!gameActive || gameOver || engineThinking || browsing) return;
   if (game.turn() !== userColor) return;
+  if (mode === "puzzle"){ puzzleHint(); return; }
   if (mode === "opening" && !bookDone){ showBookHint(); return; }
   const tok = sessionToken;
   setStatus(modePrefix() + "Looking for a strong move…");
@@ -910,7 +1138,7 @@ function navTo(idx){
   const mv = idx > 0 ? sanHistory[idx - 1] : null;
   lastMove = mv ? {from: mv.from, to: mv.to} : null;
   bestHint = null; selected = null; legalTargets = [];
-  renderBoard(); renderCaptured(idx); syncButtons();
+  renderBoard(); renderCaptured(idx); renderMoveList(); syncButtons();
   setStatus("Viewing move " + idx + " of " + last +
             ' · <a href="#" onclick="navTo(' + last + ');return false">back to live</a>');
 }
@@ -938,6 +1166,7 @@ function buildPGN(){
     '[Black "' + (userColor === "b" ? "You" : "Engine") + '"]',
     '[Result "' + res + '"]'
   ];
+  if (curOpening) hdr.push('[Opening "' + curOpening + '"]');
   if (!std){ hdr.push('[SetUp "1"]'); hdr.push('[FEN "' + start + '"]'); }
   let num = +start.split(" ")[5] || 1, txt = "";
   sanHistory.forEach((m, i) => {
@@ -1020,6 +1249,7 @@ function renderOpenings(){
 
 function startOpening(i, side){
   if (!requireEngine()) return;
+  if (!confirmAbandon()) return;
   const op = OPENINGS[i];
   mode = "opening";
   openingLine = op.m.split(" ");
@@ -1037,6 +1267,7 @@ function startOpening(i, side){
 ===================================================== */
 async function startMiddlegame(){
   if (!requireEngine()) return;
+  if (!confirmAbandon()) return;
   mode = "middlegame";
   resetSession();
   const tok = sessionToken;
@@ -1107,6 +1338,7 @@ function renderEndgames(){
 
 function startEndgame(i){
   if (!requireEngine()) return;
+  if (!confirmAbandon()) return;
   const eg = ENDGAMES[i];
   beginEndgameSession(eg.f, eg.u, eg.n);
 }
@@ -1129,6 +1361,7 @@ const EG_TEMPLATES = [
 ];
 function startRandomEndgame(){
   if (!requireEngine()) return;
+  if (!confirmAbandon()) return;
   for (let attempt = 0; attempt < 300; attempt++){
     const t = EG_TEMPLATES[Math.floor(Math.random() * EG_TEMPLATES.length)];
     const userSide = Math.random() < .5 ? "w" : "b";
@@ -1175,6 +1408,191 @@ function startRandomEndgame(){
 }
 
 /* =====================================================
+   TRAINING: puzzles (mate puzzles + mistake drills)
+   Mate puzzles are solved by verification, not by matching a stored
+   line — any correct forcing move is accepted.
+===================================================== */
+const MATE_PUZZLES = [{"f":"3k4/8/3K4/R7/1p6/8/8/8 w - - 5 44","d":1},{"f":"8/2r5/8/8/4K1kP/8/8/3r4 b - h3 0 40","d":1},{"f":"6r1/8/3p4/5k1K/8/pp6/8/8 b - - 5 49","d":1},{"f":"1R6/8/8/8/1P6/k7/3PK3/1R6 w - - 0 41","d":1},{"f":"3K4/2p4n/3k4/r6p/8/8/8/8 b - - 6 47","d":1},{"f":"6R1/8/k7/8/4PP2/6B1/1R6/6K1 w - - 15 44","d":1},{"f":"8/1Q5B/4k3/6P1/3P4/8/3P4/4K2R w K - 11 37","d":1},{"f":"r7/2p2k2/7B/1p6/8/3P4/5r2/2K5 b - - 1 26","d":1},{"f":"8/6b1/3pk2p/7r/1n6/N5q1/8/1K6 b - - 1 30","d":1},{"f":"1n3b2/r4kp1/4p3/3r4/6K1/1bpq4/8/8 b - - 5 28","d":1},{"f":"6n1/8/8/6k1/3N4/3P2PQ/R1P3P1/4KB1R w - - 3 26","d":1},{"f":"4rknr/7p/8/6P1/P1pP4/8/6PP/4R2K b - - 3 29","d":1},{"f":"6q1/k2b4/8/7K/8/8/8/8 b - - 9 49","d":2},{"f":"8/8/8/2Qp1K2/P5R1/8/8/4k3 w - - 1 45","d":2},{"f":"7k/2R5/5K2/8/8/2P5/P6p/8 w - - 0 37","d":2},{"f":"8/1r6/4k3/2p4p/2Pp3P/8/p7/3K4 b - - 1 40","d":2},{"f":"8/5k2/1P6/4p3/1b3nnp/7p/8/5K2 b - - 8 49","d":2},{"f":"8/8/3k4/RP6/4Q1R1/8/1P4PK/1N6 w - - 1 31","d":2},{"f":"4kn1r/1r6/5pnp/7p/2K5/8/8/3r4 b k - 3 36","d":2},{"f":"2R5/5k2/8/1ppp4/8/3BKNP1/8/7R w - - 1 28","d":2},{"f":"8/4k3/8/8/4KQP1/7N/P1P2P1P/1R6 w - - 7 32","d":2},{"f":"2k5/8/4R3/4B3/2P5/1p2PB2/7P/1N2K2R w K - 3 25","d":2},{"f":"2b5/2pp4/4k2n/8/2p1KP2/2r4P/7P/7R b - - 1 23","d":2},{"f":"5k2/B5p1/6P1/3R4/P2P1p2/8/P4P2/4KB2 w - - 1 39","d":2}];
+
+function matingMoves(g){
+  return g.moves({verbose:true}).filter(m => {
+    g.move(m.san);
+    const mate = g.in_checkmate();
+    g.undo();
+    return mate;
+  });
+}
+// with the opponent to move: is every reply met by an immediate mate?
+function forcesMateNext(g){
+  const replies = g.moves();
+  if (!replies.length) return false;
+  for (const r of replies){
+    g.move(r);
+    const ok = matingMoves(g).length > 0;
+    g.undo();
+    if (!ok) return false;
+  }
+  return true;
+}
+function keyMateIn2(g){
+  for (const m of g.moves({verbose:true})){
+    g.move(m.san);
+    const forces = !g.in_checkmate() && forcesMateNext(g);
+    g.undo();
+    if (forces) return m;
+  }
+  return null;
+}
+
+function loadPuzzleStats(){
+  try{ return JSON.parse(localStorage.getItem("chesscoach-puzzles")) || {streak:0,best:0,solved:0}; }
+  catch(e){ return {streak:0,best:0,solved:0}; }
+}
+function savePuzzleStats(s){ try{ localStorage.setItem("chesscoach-puzzles", JSON.stringify(s)); }catch(e){} }
+function renderPuzzleStats(){
+  const s = loadPuzzleStats();
+  document.getElementById("puzzleStats").textContent =
+    "Streak " + s.streak + " · Best " + s.best + " · Solved " + s.solved;
+}
+
+function beginPuzzle(cfg){
+  if (!confirmAbandon()) return;
+  const side = cfg.fen.split(" ")[1];
+  mode = "puzzle";
+  userColor = side; flipped = side === "b";
+  resetSession(cfg.fen);
+  puzzle = cfg; puzzle.failed = false; puzzle.solvedMoves = 0;
+  renderBoard();
+  showScreen("play");
+  setStatus("🧩 <b>" + cfg.label + "</b> — " + (side === "w" ? "White" : "Black") +
+            " to move." + puzzleLinks());
+}
+const puzzleLinks = () =>
+  ' · <a href="#" onclick="puzzleHint();return false">hint</a>' +
+  ' · <a href="#" onclick="puzzleReveal();return false">solution</a>';
+
+function startMatePuzzle(){
+  const p = MATE_PUZZLES[Math.floor(Math.random() * MATE_PUZZLES.length)];
+  beginPuzzle({kind:"mate", fen:p.f, depth:p.d, label:"Mate in " + p.d});
+}
+function startMistakeDrill(){
+  const arr = loadMistakes();
+  if (!arr.length){ renderMistakeCount(); return; }
+  const p = arr[Math.floor(Math.random() * arr.length)];
+  beginPuzzle({kind:"mistake", fen:p.f, best:p.u, depth:1,
+               label:"Fix your mistake — you played " + p.played, data:p});
+}
+
+function puzzleMove(from, to){
+  const mv = game.move({from, to, promotion: "q"});
+  if (!mv) return;
+  const uci = mv.from + mv.to + (mv.promotion || "");
+  let ok;
+  if (puzzle.kind === "mistake"){
+    ok = uci === puzzle.best || mv.san.includes("#");
+  } else {
+    const movesLeft = puzzle.depth - puzzle.solvedMoves;
+    ok = game.in_checkmate() || (movesLeft > 1 && forcesMateNext(game));
+  }
+  if (!ok){
+    game.undo();
+    if (!puzzle.failed){
+      puzzle.failed = true;
+      const s = loadPuzzleStats(); s.streak = 0; savePuzzleStats(s); renderPuzzleStats();
+    }
+    selected = null; legalTargets = [];
+    renderBoard();
+    setStatus("❌ Not it — that doesn't force it. Try again" + puzzleLinks());
+    return;
+  }
+  puzzle.solvedMoves++;
+  afterMove(mv);
+  if (game.in_checkmate() || (puzzle.kind === "mistake")){ puzzleSolved(); return; }
+  // defender plays the most resilient-looking reply, then you finish the job
+  setTimeout(() => {
+    if (mode !== "puzzle" || !puzzle || game.game_over()) return;
+    let best = null, bestN = -1;
+    for (const r of game.moves({verbose:true})){
+      game.move(r.san);
+      const n = game.moves().length;
+      game.undo();
+      if (n > bestN){ bestN = n; best = r; }
+    }
+    if (!best) return;
+    const rm = game.move(best.san);
+    if (rm){ afterMove(rm); setStatus("🧩 Good — now finish it." + puzzleLinks()); }
+  }, 450);
+}
+
+function puzzleSolved(){
+  const clean = !puzzle.failed;
+  const s = loadPuzzleStats();
+  if (clean){ s.streak++; s.best = Math.max(s.best, s.streak); }
+  s.solved++;
+  savePuzzleStats(s); renderPuzzleStats();
+  if (puzzle.kind === "mistake" && clean && puzzle.data){
+    saveMistakes(loadMistakes().filter(x => x.f !== puzzle.data.f));
+    renderMistakeCount();
+  }
+  const next = puzzle.kind === "mate" ? "startMatePuzzle()" : "startMistakeDrill()";
+  setStatus("✅ <b>Solved" + (clean ? "" : " (with retries)") + "!</b> Streak " + s.streak +
+            ' · <a href="#" onclick="' + next + ';return false"><b>Next puzzle</b></a>');
+  puzzle = null; gameActive = false; gameOver = true;
+  document.getElementById("btnResign").disabled = true;
+  syncButtons();
+}
+
+function puzzleSolutionMove(){
+  if (puzzle.kind === "mistake"){
+    const u = puzzle.best;
+    return {from: u.slice(0,2), to: u.slice(2,4)};
+  }
+  const m = (puzzle.depth - puzzle.solvedMoves === 1) ? matingMoves(game)[0] : keyMateIn2(game);
+  return m ? {from: m.from, to: m.to} : null;
+}
+function puzzleHint(){
+  if (mode !== "puzzle" || !puzzle) return;
+  const m = puzzleSolutionMove();
+  if (!m) return;
+  if (!puzzle.failed){
+    puzzle.failed = true;
+    const s = loadPuzzleStats(); s.streak = 0; savePuzzleStats(s); renderPuzzleStats();
+  }
+  bestHint = {from: m.from, to: null};   // only reveal the origin square
+  renderBoard();
+  setStatus("💡 The piece to move is highlighted — find the square." + puzzleLinks());
+}
+function puzzleReveal(){
+  if (mode !== "puzzle" || !puzzle) return;
+  const m = puzzleSolutionMove();
+  if (!m) return;
+  if (!puzzle.failed){
+    puzzle.failed = true;
+    const s = loadPuzzleStats(); s.streak = 0; savePuzzleStats(s); renderPuzzleStats();
+  }
+  bestHint = m;
+  renderBoard();
+  try{
+    const t = new Chess(game.fen());
+    const sm = t.move({from: m.from, to: m.to, promotion: "q"});
+    setStatus("Solution: <b>" + (sm ? sm.san : "?") + "</b> — play it on the board.");
+  }catch(e){}
+}
+
+/* ---------- personal mistake bank ---------- */
+function loadMistakes(){
+  try{ return JSON.parse(localStorage.getItem("chesscoach-mistakes")) || []; }
+  catch(e){ return []; }
+}
+function saveMistakes(arr){ try{ localStorage.setItem("chesscoach-mistakes", JSON.stringify(arr.slice(-40))); }catch(e){} }
+function renderMistakeCount(){
+  const n = loadMistakes().length;
+  document.getElementById("mistakeCount").textContent =
+    n ? n + " saved mistake" + (n > 1 ? "s" : "") + " to fix"
+      : "No mistakes saved yet — analyze a game first.";
+}
+
+/* =====================================================
    Analysis / review
 ===================================================== */
 function lineScoreCp(l){
@@ -1217,6 +1635,8 @@ async function startAnalysis(){
   document.getElementById("accuracyCard").style.display = "none";
   document.getElementById("qualitySummary").style.display = "none";
   document.getElementById("btnSpeak").style.display = "none";
+  document.getElementById("evalGraphWrap").style.display = "none";
+  document.getElementById("phaseLine").style.display = "none";
   document.getElementById("reviewList").innerHTML = "";
   const depth = +optVal("optDepth");
   const N = fensHistory.length;
@@ -1286,9 +1706,43 @@ function buildReview(evals){
     if (q === "miss" && mateWasAvailable) comment = "A forced mate was available. " + comment;
     comment += evalPhrase(cpAfter, mover);
 
-    items.push({ i, mv, q, loss, comment, bestFromTo, bestSan, mover });
+    items.push({ i, mv, q, loss, comment, bestFromTo, bestSan, mover, bestUci: before.best });
   }
-  reviewData = { items, accW: accuracy(lossesW), accB: accuracy(lossesB), counts };
+
+  // eval graph: White's win chances at every position
+  const pcts = evals.map((e, i) => {
+    const side = fensHistory[i].split(" ")[1];
+    const cp = lineScoreCp(e.lines[1]);
+    return winPct(side === "w" ? cp : -cp);
+  });
+
+  // your accuracy by game phase
+  const phaseLosses = {open: [], mid: [], end: []};
+  items.forEach(it => {
+    if (it.mover !== userColor) return;
+    const pieces = fensHistory[it.i].split(" ")[0].replace(/[^a-zA-Z]/g, "").length;
+    const ph = pieces <= 12 ? "end" : (it.i < 16 ? "open" : "mid");
+    phaseLosses[ph].push(it.loss);
+  });
+  const phases = {};
+  for (const k in phaseLosses) phases[k] = phaseLosses[k].length ? accuracy(phaseLosses[k]) : null;
+
+  // bank your mistakes as personal drill puzzles
+  try{
+    const bank = loadMistakes();
+    items.forEach(it => {
+      if (it.mover === userColor && ["mistake","miss","blunder"].includes(it.q) &&
+          it.bestUci && it.bestUci.length >= 4){
+        const f = fensHistory[it.i];
+        if (!bank.some(x => x.f === f))
+          bank.push({f, u: it.bestUci, played: it.mv.san, q: it.q});
+      }
+    });
+    saveMistakes(bank);
+    renderMistakeCount();
+  }catch(e){}
+
+  reviewData = { items, accW: accuracy(lossesW), accB: accuracy(lossesB), counts, pcts, phases };
   renderReview();
 }
 
@@ -1328,6 +1782,36 @@ function renderReviewPlaceholder(){
   document.getElementById("accuracyCard").style.display = "none";
   document.getElementById("qualitySummary").style.display = "none";
   document.getElementById("btnSpeak").style.display = "none";
+  document.getElementById("evalGraphWrap").style.display = "none";
+  document.getElementById("phaseLine").style.display = "none";
+}
+
+function renderEvalGraph(){
+  const wrap = document.getElementById("evalGraphWrap");
+  const { pcts, items } = reviewData;
+  if (!pcts || pcts.length < 3){ wrap.style.display = "none"; return; }
+  wrap.style.display = "block";
+  const W = 440, H = 70;
+  const x = i => (i / (pcts.length - 1)) * W;
+  const y = p => H - (p / 100) * H;
+  const line = pcts.map((p, i) => (i ? "L" : "M") + x(i).toFixed(1) + " " + y(p).toFixed(1)).join(" ");
+  let svg =
+    '<rect width="' + W + '" height="' + H + '" fill="#211C13"/>' +
+    '<path d="' + line + " L" + W + " " + H + " L0 " + H + ' Z" fill="rgba(239,231,211,.82)"/>' +
+    '<line x1="0" y1="' + H/2 + '" x2="' + W + '" y2="' + H/2 + '" stroke="rgba(201,162,75,.5)" stroke-width="1" stroke-dasharray="4 4"/>' +
+    '<path d="' + line + '" stroke="#C9A24B" stroke-width="1.6" fill="none"/>';
+  items.forEach(it => {
+    if (["mistake","miss","blunder"].includes(it.q))
+      svg += '<circle cx="' + x(it.i + 1).toFixed(1) + '" cy="' + y(pcts[it.i + 1]).toFixed(1) +
+             '" r="3.2" fill="' + (it.q === "blunder" ? "#CA3431" : "#E07C24") + '" stroke="#15120D" stroke-width="1"/>';
+  });
+  document.getElementById("evalGraph").innerHTML = svg;
+}
+function evalGraphTap(ev){
+  if (!reviewData || !reviewData.pcts) return;
+  const r = document.getElementById("evalGraph").getBoundingClientRect();
+  const idx = Math.round(((ev.clientX - r.left) / r.width) * (reviewData.pcts.length - 1));
+  if (idx > 0 && idx <= reviewData.items.length) showPosition(idx - 1);
 }
 
 function renderReview(){
@@ -1335,6 +1819,13 @@ function renderReview(){
   document.getElementById("accW").textContent = accW + "%";
   document.getElementById("accB").textContent = accB + "%";
   document.getElementById("accuracyCard").style.display = "grid";
+  const ph = reviewData.phases || {};
+  const fmt = v => v === null || v === undefined ? "—" : v + "%";
+  const pl = document.getElementById("phaseLine");
+  pl.innerHTML = "<b>Your phases:</b> opening " + fmt(ph.open) +
+                 " · middlegame " + fmt(ph.mid) + " · endgame " + fmt(ph.end);
+  pl.style.display = "block";
+  renderEvalGraph();
   const qs = document.getElementById("qualitySummary");
   qs.innerHTML = "";
   ["brilliant","great","best","excellent","good","inaccuracy","mistake","miss","blunder"].forEach(k => {
@@ -1391,7 +1882,8 @@ function exitBrowse(){
   lastMove = sanHistory.length ? {from: sanHistory[sanHistory.length-1].from, to: sanHistory[sanHistory.length-1].to} : null;
   renderBoard();
   renderCaptured();
-  setStatus(gameOver ? "<b>Game over.</b> Review it on the Review tab." : modePrefix() + "<b>Your move</b>");
+  renderMoveList();
+  setStatus(gameOver ? "<b>Game over.</b> Review it on the Review tab." : modePrefix() + "<b>Your move</b>" + openSuffix());
 }
 
 /* =====================================================
@@ -1463,7 +1955,10 @@ function showScreen(name){
 renderOpenings();
 renderEndgames();
 renderStats();
+renderPuzzleStats();
+renderMistakeCount();
 renderBoard();
+offerResume();
 </script>
 </body>
 </html>
