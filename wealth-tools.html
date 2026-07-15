@@ -247,6 +247,7 @@
     <button data-tab="goal">🎯 Savings Goal</button>
     <button data-tab="debt">💳 Debt Payoff</button>
     <button data-tab="loan">🏦 Loan &amp; Mortgage</button>
+    <button data-tab="drawdown">⏳ Drawdown</button>
   </nav>
 
   <!-- ══════════════════ COMPOUND INTEREST ══════════════════ -->
@@ -644,6 +645,58 @@
     </div>
   </section>
 
+  <!-- ══════════════════ DRAWDOWN ══════════════════ -->
+  <section class="panel" id="panel-drawdown">
+    <div class="grid">
+      <div class="card">
+        <h2>Retirement Drawdown Calculator</h2>
+        <p class="sub">How long will my money last? Withdrawals rise with inflation.</p>
+        <div class="field">
+          <label>Starting portfolio <b id="dd-p0-v"></b></label>
+          <input type="number" id="dd-p0" value="500000" min="0" step="10000">
+          <input type="range" id="dd-p0-r" min="10000" max="3000000" step="10000" value="500000">
+        </div>
+        <div class="field">
+          <label>Monthly withdrawal (today's money) <b id="dd-w-v"></b></label>
+          <input type="number" id="dd-w" value="3000" min="0" step="100">
+          <input type="range" id="dd-w-r" min="100" max="20000" step="100" value="3000">
+        </div>
+        <div class="field">
+          <label>Annual return (%) <b id="dd-r-v"></b></label>
+          <input type="number" id="dd-r" value="5" min="0" max="15" step="0.1">
+          <input type="range" id="dd-r-r" min="0" max="12" step="0.1" value="5">
+        </div>
+        <div class="field">
+          <label>Inflation (%/yr) <b id="dd-infl-v"></b></label>
+          <input type="number" id="dd-infl" value="2.5" min="0" max="12" step="0.1">
+          <input type="range" id="dd-infl-r" min="0" max="8" step="0.1" value="2.5">
+        </div>
+        <div class="field">
+          <label>Your age today <b id="dd-age-v"></b></label>
+          <input type="number" id="dd-age" value="65" min="18" max="100" step="1">
+          <input type="range" id="dd-age-r" min="30" max="90" step="1" value="65">
+        </div>
+        <div class="share-row">
+          <button class="btn primary" onclick="copyLink()">🔗 Copy shareable link</button>
+        </div>
+      </div>
+      <div>
+        <div class="results" id="dd-results"></div>
+        <div class="card chart-card">
+          <svg class="chart" id="dd-chart" viewBox="0 0 640 320" role="img" aria-label="Portfolio drawdown chart"></svg>
+          <div class="legend">
+            <span><i style="background:var(--accent)"></i>Portfolio balance</span>
+            <span><i style="background:var(--danger)"></i>Depleted</span>
+          </div>
+        </div>
+        <div class="card" style="margin-top:22px">
+          <h2>Sustainability check</h2>
+          <div class="verdict" id="dd-verdict"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <!-- ═══ AD SLOT: mid-content ═══════════════════════════════════════════ -->
   <div class="adslot"><b>Ad space</b> — mid-content rectangle (paste your ad unit here)</div>
 
@@ -669,6 +722,8 @@
     <p>Three numbers tell you most of the story: <b>monthly cash flow</b> (rent minus all costs and mortgage), <b>cap rate</b> (net operating income ÷ purchase price), and <b>cash-on-cash return</b> (annual cash flow ÷ cash invested). Many investors look for positive cash flow from day one and a cash-on-cash return above 6–8%.</p>
     <h2>Avalanche vs. snowball: which debt payoff method wins?</h2>
     <p>The <b>avalanche</b> method targets the highest-APR debt first and always minimizes total interest paid. The <b>snowball</b> method targets the smallest balance first — mathematically slightly costlier, but the quick wins keep many people motivated to finish. The debt calculator above shows the exact dollar difference for your debts, so you can decide if the motivation is worth the price.</p>
+    <h2>How long will my retirement savings last?</h2>
+    <p>It depends on three numbers: your withdrawal rate, your return, and inflation. Withdrawing 4% of the starting balance with inflation raises typically survives 30+ years; at 6%+ the odds shorten quickly. The drawdown calculator above simulates it month by month with inflation-adjusted withdrawals, showing the exact age your money runs out.</p>
     <h2>Is dividend investing really passive income?</h2>
     <p>Dividend portfolios pay you in cash on a schedule, making them one of the most genuinely passive income streams available. Reinvesting dividends (DRIP) during the growth years and switching to cash payouts later is the classic playbook — the calculator above models both modes.</p>
   </div>
@@ -704,7 +759,7 @@
       </div>
       <div>
         <h3>Calculators</h3>
-        <p><a href="#" onclick="showTab('compound');return false">Compound Interest</a> · <a href="#" onclick="showTab('dividend');return false">Dividend Income</a> · <a href="#" onclick="showTab('fire');return false">FIRE</a> · <a href="#" onclick="showTab('rental');return false">Rental ROI</a> · <a href="#" onclick="showTab('goal');return false">Savings Goal</a> · <a href="#" onclick="showTab('debt');return false">Debt Payoff</a> · <a href="#" onclick="showTab('loan');return false">Loan &amp; Mortgage</a></p>
+        <p><a href="#" onclick="showTab('compound');return false">Compound Interest</a> · <a href="#" onclick="showTab('dividend');return false">Dividend Income</a> · <a href="#" onclick="showTab('fire');return false">FIRE</a> · <a href="#" onclick="showTab('rental');return false">Rental ROI</a> · <a href="#" onclick="showTab('goal');return false">Savings Goal</a> · <a href="#" onclick="showTab('debt');return false">Debt Payoff</a> · <a href="#" onclick="showTab('loan');return false">Loan &amp; Mortgage</a> · <a href="#" onclick="showTab('drawdown');return false">Drawdown</a></p>
       </div>
       <div>
         <h3>Disclaimer</h3>
@@ -742,7 +797,8 @@ const tabTitles = {
   rental: "Rental Property ROI Calculator",
   goal: "Savings Goal Calculator",
   debt: "Debt Payoff Calculator (Avalanche vs Snowball)",
-  loan: "Loan & Mortgage Calculator"
+  loan: "Loan & Mortgage Calculator",
+  drawdown: "Retirement Drawdown Calculator — How Long Will My Money Last?"
 };
 function showTab(name) {
   currentTab = name;
@@ -761,7 +817,8 @@ const pairs = [
   "re-price","re-down","re-rate","re-rent","re-exp","re-vac","re-close",
   "go-goal","go-p0","go-y","go-r",
   "db-extra",
-  "lo-amt","lo-rate","lo-y","lo-extra"
+  "lo-amt","lo-rate","lo-y","lo-extra",
+  "dd-p0","dd-w","dd-r","dd-infl","dd-age"
 ];
 pairs.forEach(id => {
   const num = $(id), rng = $(id + "-r");
@@ -1189,8 +1246,48 @@ function calcLoan() {
     withExtra.rows.map(r2 => `<tr><td>${r2[0]}</td><td>${fmt(r2[1])}</td><td>${fmt(r2[2])}</td><td><b>${fmt(r2[3])}</b></td></tr>`).join("");
 }
 
+/* ── retirement drawdown ──────────────────────────────── */
+function calcDrawdown() {
+  const p0 = val("dd-p0"), w0 = val("dd-w"), r = val("dd-r") / 100,
+        infl = val("dd-infl") / 100, age = Math.round(val("dd-age"));
+  setLabel("dd-p0", fmt(p0)); setLabel("dd-w", fmt(w0) + "/mo"); setLabel("dd-r", pct(val("dd-r")));
+  setLabel("dd-infl", pct(val("dd-infl"))); setLabel("dd-age", age + " yrs");
+
+  const mR = Math.pow(1 + r, 1 / 12), mI = Math.pow(1 + infl, 1 / 12);
+  let bal = p0, w = w0, m = 0, totalWithdrawn = 0;
+  const capM = 70 * 12;
+  const pts = [[0, p0]];
+  while (bal > 0 && m < capM) {
+    m++;
+    bal *= mR;
+    const take = Math.min(w, bal);
+    bal -= take; totalWithdrawn += take;
+    w *= mI;
+    if (m % 6 === 0 || bal <= 0) pts.push([m / 12, Math.max(0, bal)]);
+  }
+  const depleted = bal <= 0;
+  const wr = p0 > 0 ? (w0 * 12 / p0) * 100 : 0;
+  $("dd-results").innerHTML =
+    stat("Money lasts", depleted ? fmtMonths(m) : "70+ years", depleted ? (m < 25 * 12 ? "red" : "gold") : "green",
+      depleted ? "runs out at age " + (age + Math.floor(m / 12)) : "effectively indefinite") +
+    stat("Withdrawal rate", wr.toFixed(1) + "%", wr <= 4 ? "green" : wr <= 5.5 ? "gold" : "red", "of starting portfolio per year") +
+    stat("Total withdrawn", fmt(totalWithdrawn), "blue", depleted ? "over " + fmtMonths(m) : "over 70 years");
+  drawChart("dd-chart", [{ pts, color: "#4f8cff", fill: true, name: "Portfolio" }]);
+  const v = $("dd-verdict");
+  if (!depleted) {
+    v.className = "verdict good";
+    v.innerHTML = `✅ At a ${wr.toFixed(1)}% withdrawal rate your portfolio outlives the 70-year horizon — returns replace what you take out. This plan is sustainable on these assumptions.`;
+  } else if (m >= 30 * 12) {
+    v.className = "verdict";
+    v.innerHTML = `🟡 Your money lasts <b>${fmtMonths(m)}</b> (to age ${age + Math.floor(m / 12)}). That covers a typical retirement, but a long life or weak markets could stretch it thin — test a lower withdrawal.`;
+  } else {
+    v.className = "verdict bad";
+    v.innerHTML = `⚠️ At this pace the portfolio is gone in <b>${fmtMonths(m)}</b> — age ${age + Math.floor(m / 12)}. Reducing the monthly withdrawal by 10–20% typically adds many years; try the slider.`;
+  }
+}
+
 /* ── dispatcher, share links, init ────────────────────── */
-const calcs = { compound: calcCompound, dividend: calcDividend, fire: calcFire, rental: calcRental, goal: calcGoal, debt: calcDebt, loan: calcLoan };
+const calcs = { compound: calcCompound, dividend: calcDividend, fire: calcFire, rental: calcRental, goal: calcGoal, debt: calcDebt, loan: calcLoan, drawdown: calcDrawdown };
 function recalc() { calcs[currentTab](); saveState(); }
 
 /* ── persistence (localStorage) ───────────────────────── */
