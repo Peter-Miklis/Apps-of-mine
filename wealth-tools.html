@@ -248,6 +248,7 @@
     <button data-tab="debt">💳 Debt Payoff</button>
     <button data-tab="loan">🏦 Loan &amp; Mortgage</button>
     <button data-tab="drawdown">⏳ Drawdown</button>
+    <button data-tab="inflation">🎈 Inflation</button>
   </nav>
 
   <!-- ══════════════════ COMPOUND INTEREST ══════════════════ -->
@@ -705,6 +706,49 @@
     </div>
   </section>
 
+  <!-- ══════════════════ INFLATION ══════════════════ -->
+  <section class="panel" id="panel-inflation">
+    <div class="grid">
+      <div class="card">
+        <h2>Inflation Calculator</h2>
+        <p class="sub">What today's money will be worth in the future — and what you'll need to keep up.</p>
+        <div class="field">
+          <label>Amount today <b id="in-amt-v"></b></label>
+          <input type="number" id="in-amt" value="10000" min="0" step="100">
+          <input type="range" id="in-amt-r" min="100" max="500000" step="100" value="10000">
+        </div>
+        <div class="field">
+          <label>Annual inflation (%) <b id="in-r-v"></b></label>
+          <input type="number" id="in-r" value="2.5" min="0" max="30" step="0.1">
+          <input type="range" id="in-r-r" min="0" max="15" step="0.1" value="2.5">
+        </div>
+        <div class="field">
+          <label>Years <b id="in-y-v"></b></label>
+          <input type="number" id="in-y" value="20" min="1" max="60" step="1">
+          <input type="range" id="in-y-r" min="1" max="50" step="1" value="20">
+        </div>
+        <div class="share-row">
+          <button class="btn primary" onclick="copyLink()">🔗 Copy shareable link</button>
+          <button class="btn" onclick="downloadCard()">🖼 Download result image</button>
+        </div>
+      </div>
+      <div>
+        <div class="results" id="in-results"></div>
+        <div class="card chart-card">
+          <svg class="chart" id="in-chart" viewBox="0 0 640 320" role="img" aria-label="Purchasing power chart"></svg>
+          <div class="legend">
+            <span><i style="background:var(--danger)"></i>Purchasing power of today's amount</span>
+            <span><i style="background:var(--gold)"></i>Amount needed to match today</span>
+          </div>
+        </div>
+        <div class="card" style="margin-top:22px">
+          <h2>Why this matters</h2>
+          <p class="sub" style="margin-bottom:0">Inflation compounds just like interest — against you. Cash that isn't invested loses purchasing power every year, which is why long-term savings usually belong in assets that outpace inflation.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <!-- ═══ AD SLOT: mid-content ═══════════════════════════════════════════ -->
   <div class="adslot"><b>Ad space</b> — mid-content rectangle (paste your ad unit here)</div>
 
@@ -767,7 +811,7 @@
       </div>
       <div>
         <h3>Calculators</h3>
-        <p><a href="#" onclick="showTab('compound');return false">Compound Interest</a> · <a href="#" onclick="showTab('dividend');return false">Dividend Income</a> · <a href="#" onclick="showTab('fire');return false">FIRE</a> · <a href="#" onclick="showTab('rental');return false">Rental ROI</a> · <a href="#" onclick="showTab('goal');return false">Savings Goal</a> · <a href="#" onclick="showTab('debt');return false">Debt Payoff</a> · <a href="#" onclick="showTab('loan');return false">Loan &amp; Mortgage</a> · <a href="#" onclick="showTab('drawdown');return false">Drawdown</a></p>
+        <p><a href="#" onclick="showTab('compound');return false">Compound Interest</a> · <a href="#" onclick="showTab('dividend');return false">Dividend Income</a> · <a href="#" onclick="showTab('fire');return false">FIRE</a> · <a href="#" onclick="showTab('rental');return false">Rental ROI</a> · <a href="#" onclick="showTab('goal');return false">Savings Goal</a> · <a href="#" onclick="showTab('debt');return false">Debt Payoff</a> · <a href="#" onclick="showTab('loan');return false">Loan &amp; Mortgage</a> · <a href="#" onclick="showTab('drawdown');return false">Drawdown</a> · <a href="#" onclick="showTab('inflation');return false">Inflation</a></p>
       </div>
       <div>
         <h3>Disclaimer</h3>
@@ -806,7 +850,8 @@ const tabTitles = {
   goal: "Savings Goal Calculator",
   debt: "Debt Payoff Calculator (Avalanche vs Snowball)",
   loan: "Loan & Mortgage Calculator",
-  drawdown: "Retirement Drawdown Calculator — How Long Will My Money Last?"
+  drawdown: "Retirement Drawdown Calculator — How Long Will My Money Last?",
+  inflation: "Inflation Calculator — Future Purchasing Power"
 };
 function showTab(name) {
   currentTab = name;
@@ -826,7 +871,8 @@ const pairs = [
   "go-goal","go-p0","go-y","go-r",
   "db-extra",
   "lo-amt","lo-rate","lo-y","lo-extra",
-  "dd-p0","dd-w","dd-r","dd-infl","dd-age"
+  "dd-p0","dd-w","dd-r","dd-infl","dd-age",
+  "in-amt","in-r","in-y"
 ];
 pairs.forEach(id => {
   const num = $(id), rng = $(id + "-r");
@@ -1294,6 +1340,29 @@ function calcDrawdown() {
   }
 }
 
+/* ── inflation ────────────────────────────────────────── */
+function calcInflation() {
+  const amt = val("in-amt"), r = val("in-r") / 100, years = Math.max(1, Math.round(val("in-y")));
+  setLabel("in-amt", fmt(amt)); setLabel("in-r", pct(val("in-r"))); setLabel("in-y", years + " yrs");
+  const factor = Math.pow(1 + r, years);
+  const futureNeeded = amt * factor;      // to match today's purchasing power
+  const futureWorth = amt / factor;       // what today's amount buys then
+  const lossPct = (1 - 1 / factor) * 100;
+  const powerPts = [], neededPts = [];
+  for (let y = 0; y <= years; y++) {
+    powerPts.push([y, amt / Math.pow(1 + r, y)]);
+    neededPts.push([y, amt * Math.pow(1 + r, y)]);
+  }
+  $("in-results").innerHTML =
+    stat("Worth in " + years + " years", fmt(futureWorth), "red", "today's " + fmt(amt) + " buys this much then") +
+    stat("Needed to match " + fmt(amt), fmt(futureNeeded), "gold", "same purchasing power in " + years + " years") +
+    stat("Purchasing power lost", lossPct.toFixed(0) + "%", lossPct >= 40 ? "red" : "", "prices rise " + ((factor - 1) * 100).toFixed(0) + "% overall");
+  drawChart("in-chart", [
+    { pts: neededPts, color: "#f5c542", name: "Needed to match today" },
+    { pts: powerPts, color: "#ff6b81", fill: true, name: "Purchasing power" }
+  ]);
+}
+
 /* ── shareable result image (canvas PNG) ──────────────── */
 function roundRect(g, x, y, w, h, r) {
   g.beginPath();
@@ -1346,7 +1415,7 @@ function downloadCard() {
 }
 
 /* ── dispatcher, share links, init ────────────────────── */
-const calcs = { compound: calcCompound, dividend: calcDividend, fire: calcFire, rental: calcRental, goal: calcGoal, debt: calcDebt, loan: calcLoan, drawdown: calcDrawdown };
+const calcs = { compound: calcCompound, dividend: calcDividend, fire: calcFire, rental: calcRental, goal: calcGoal, debt: calcDebt, loan: calcLoan, drawdown: calcDrawdown, inflation: calcInflation };
 function recalc() { calcs[currentTab](); saveState(); }
 
 /* ── persistence (localStorage) ───────────────────────── */
