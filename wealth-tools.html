@@ -179,6 +179,18 @@
   .debt-grid input:focus { outline: none; border-color: var(--accent); }
   .debt-grid .dn { color: var(--muted); font-size: .85rem; }
 
+  .charttip {
+    position: fixed; display: none; z-index: 40; pointer-events: none;
+    background: var(--card2); border: 1px solid var(--border); border-radius: 10px;
+    padding: 10px 12px; font-size: .82rem; color: var(--text);
+    box-shadow: 0 8px 24px rgba(0,0,0,.35); min-width: 170px;
+  }
+  .charttip .tt-when { color: var(--muted); font-size: .72rem; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 4px; }
+  .charttip div { line-height: 1.7; }
+  .charttip i { display: inline-block; width: 9px; height: 9px; border-radius: 3px; margin-right: 7px; }
+  .charttip b { font-variant-numeric: tabular-nums; }
+  .csv-btn { float: right; font-size: .78rem; padding: 6px 12px; }
+
   .toast {
     position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(80px);
     background: var(--accent2); color: #06251a; font-weight: 700; padding: 12px 22px;
@@ -269,6 +281,7 @@
           </div>
         </div>
         <div class="card" style="margin-top:22px">
+          <button class="btn csv-btn" onclick="exportCSV('ci-table','compound-interest')">⬇ CSV</button>
           <h2>Year-by-year breakdown</h2>
           <div class="table-scroll"><table class="breakdown" id="ci-table"></table></div>
         </div>
@@ -330,6 +343,7 @@
           </div>
         </div>
         <div class="card" style="margin-top:22px">
+          <button class="btn csv-btn" onclick="exportCSV('dv-table','dividend-income')">⬇ CSV</button>
           <h2>Income by year</h2>
           <div class="table-scroll"><table class="breakdown" id="dv-table"></table></div>
         </div>
@@ -594,6 +608,7 @@
           </div>
         </div>
         <div class="card" style="margin-top:22px">
+          <button class="btn csv-btn" onclick="exportCSV('lo-table','amortization')">⬇ CSV</button>
           <h2>Amortization by year (with extra payments)</h2>
           <div class="table-scroll"><table class="breakdown" id="lo-table"></table></div>
         </div>
@@ -741,7 +756,64 @@ function drawChart(svgId, series, opts = {}) {
   if (opts.vline != null) {
     out += `<line x1="${X(opts.vline)}" y1="${padT}" x2="${X(opts.vline)}" y2="${padT + ih}" stroke="#38d996" stroke-width="1.5" stroke-dasharray="4 4"/>`;
   }
+  out += `<line class="xh" x1="0" y1="${padT}" x2="0" y2="${padT + ih}" stroke="${mutedC}" stroke-width="1" style="display:none" pointer-events="none"/>`;
   svg.innerHTML = out;
+  svg._d = { series, maxX, maxY, padL, padR, padT, W, iw };
+  if (!svg._wired) {
+    svg._wired = true;
+    svg.addEventListener("mousemove", ev => chartHover(svg, ev));
+    svg.addEventListener("mouseleave", () => chartHover(svg, null));
+  }
+}
+
+/* ── chart hover tooltip ──────────────────────────────── */
+const tipEl = document.createElement("div");
+tipEl.className = "charttip";
+document.body.appendChild(tipEl);
+function chartHover(svg, ev) {
+  const xh = svg.querySelector(".xh");
+  if (!ev) { tipEl.style.display = "none"; if (xh) xh.style.display = "none"; return; }
+  const d = svg._d;
+  if (!d || !d.series.length) return;
+  const rect = svg.getBoundingClientRect();
+  const vx = (ev.clientX - rect.left) / rect.width * d.W;
+  let xVal = (vx - d.padL) / d.iw * d.maxX;
+  xVal = Math.max(0, Math.min(d.maxX, xVal));
+  let rows = "", snapX = null;
+  d.series.forEach(s => {
+    if (!s.pts.length) return;
+    let best = 0;
+    for (let i = 1; i < s.pts.length; i++)
+      if (Math.abs(s.pts[i][0] - xVal) < Math.abs(s.pts[best][0] - xVal)) best = i;
+    if (snapX === null) snapX = s.pts[best][0];
+    const v = s.tipPts ? s.tipPts[best][1] : s.pts[best][1];
+    rows += `<div><i style="background:${s.color}"></i>${s.name || "Series"}: <b>${fmt(v)}</b></div>`;
+  });
+  const when = snapX === 0 ? "Start" : fmtMonths(Math.round(snapX * 12));
+  tipEl.innerHTML = `<div class="tt-when">${when}</div>` + rows;
+  tipEl.style.display = "block";
+  const pad = 14;
+  let left = ev.clientX + pad, top = ev.clientY + pad;
+  if (left + tipEl.offsetWidth > window.innerWidth - 8) left = ev.clientX - tipEl.offsetWidth - pad;
+  if (top + tipEl.offsetHeight > window.innerHeight - 8) top = ev.clientY - tipEl.offsetHeight - pad;
+  tipEl.style.left = left + "px"; tipEl.style.top = top + "px";
+  if (xh) {
+    const sx = d.padL + (snapX / d.maxX) * d.iw;
+    xh.setAttribute("x1", sx); xh.setAttribute("x2", sx);
+    xh.style.display = "block";
+  }
+}
+
+/* ── CSV export ───────────────────────────────────────── */
+function exportCSV(tableId, filename) {
+  const rows = [...$(tableId).querySelectorAll("tr")].map(tr =>
+    [...tr.children].map(td => '"' + td.textContent.trim().replace(/"/g, '""') + '"').join(","));
+  const blob = new Blob(["﻿" + rows.join("\n")], { type: "text/csv;charset=utf-8" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = filename + ".csv";
+  a.click();
+  URL.revokeObjectURL(a.href);
 }
 function shortNum(v) {
   if (v >= 1e6) return CUR_SYM + (v / 1e6).toFixed(1) + "M";
@@ -775,9 +847,9 @@ function calcCompound() {
     stat("Total contributed", fmt(contrib), "gold") +
     stat("Interest earned", fmt(interest), "green", contrib > 0 ? Math.round((interest / contrib) * 100) + "% growth on contributions" : "");
   drawChart("ci-chart", [
-    { pts, color: "#4f8cff", fill: true },
-    { pts: contribPts, color: "#f5c542" },
-    { pts: interestPts, color: "#38d996" }
+    { pts, color: "#4f8cff", fill: true, name: "Total balance" },
+    { pts: contribPts, color: "#f5c542", name: "Contributions" },
+    { pts: interestPts, color: "#38d996", name: "Interest earned" }
   ]);
   $("ci-table").innerHTML = "<tr><th>Year</th><th>Contributed</th><th>Interest</th><th>Balance</th></tr>" +
     rows.map(r2 => `<tr><td>${r2[0]}</td><td>${fmt(r2[1])}</td><td>${fmt(r2[2])}</td><td><b>${fmt(r2[3])}</b></td></tr>`).join("");
@@ -812,8 +884,8 @@ function calcDividend() {
   const maxInc = Math.max(...incPts.map(p => p[1])) || 1;
   const maxPort = Math.max(...portPts.map(p => p[1])) || 1;
   drawChart("dv-chart", [
-    { pts: incPts, color: "#38d996", fill: true },
-    { pts: portPts.map(([x, v]) => [x, v * maxInc / maxPort]), color: "#4f8cff" }
+    { pts: incPts, color: "#38d996", fill: true, name: "Dividends / yr" },
+    { pts: portPts.map(([x, v]) => [x, v * maxInc / maxPort]), tipPts: portPts, color: "#4f8cff", name: "Portfolio value" }
   ]);
   $("dv-table").innerHTML = "<tr><th>Year</th><th>Dividends/yr</th><th>Per month</th><th>Portfolio</th></tr>" +
     rows.map(r2 => `<tr><td>${r2[0]}</td><td><b>${fmt(r2[1])}</b></td><td>${fmt(r2[2])}</td><td>${fmt(r2[3])}</td></tr>`).join("");
@@ -842,7 +914,7 @@ function calcFire() {
     stat("Retirement age", reached ? fireAge : "—", "blue") +
     stat("Progress today", pct(Math.min(100, (p0 / fireNum) * 100)), "green");
   const shown = reached ? Math.min(horizon, yearsTo + 5) : Math.min(horizon, 40);
-  drawChart("fi-chart", [{ pts: pts.slice(0, shown + 1), color: "#4f8cff", fill: true }],
+  drawChart("fi-chart", [{ pts: pts.slice(0, shown + 1), color: "#4f8cff", fill: true, name: "Portfolio" }],
     { hline: fireNum, vline: reached && yearsTo <= shown ? yearsTo : null });
   const v = $("fi-verdict");
   if (reached) {
@@ -912,7 +984,7 @@ function calcGoal() {
     stat("Save per month", fmtC(pmt), "green", "to reach " + fmt(goal) + " in " + years + " years") +
     stat("Total out of pocket", fmt(totalSaved), "gold") +
     stat("Growth does the rest", fmt(Math.max(0, goal - totalSaved)), "blue", r > 0 ? "earned at " + pct(val("go-r")) + " per year" : "");
-  drawChart("go-chart", [{ pts, color: "#4f8cff", fill: true }], { hline: goal });
+  drawChart("go-chart", [{ pts, color: "#4f8cff", fill: true, name: "Projected balance" }], { hline: goal });
 }
 
 /* ── debt payoff ──────────────────────────────────────── */
@@ -981,8 +1053,8 @@ function calcDebt() {
     stat("Total interest paid", fmt(plan.totalInterest), "gold") +
     stat("Interest saved by extra payments", fmt(Math.max(0, saved)), "green", extra > 0 ? "thanks to " + fmt(extra) + "/mo extra" : "");
   drawChart("db-chart", [
-    { pts: baseline.pts, color: "#ff6b81" },
-    { pts: plan.pts, color: "#38d996", fill: true }
+    { pts: baseline.pts, color: "#ff6b81", name: "Minimums only" },
+    { pts: plan.pts, color: "#38d996", fill: true, name: "Your plan" }
   ]);
   $("db-table").innerHTML = "<tr><th>Paid off</th><th>Debt</th><th>Month</th></tr>" +
     plan.order.map((o, i) => `<tr><td>${i + 1}.</td><td>${o.name}</td><td>${fmtMonths(o.month)}</td></tr>`).join("");
@@ -1043,8 +1115,8 @@ function calcLoan() {
       extra > 0 && savedInt > 0 ? "saves " + fmt(savedInt) + " vs schedule" : "") +
     stat("Total cost", fmt(amt + withExtra.totalInterest), "");
   drawChart("lo-chart", [
-    { pts: schedule.pts, color: "#4f8cff" },
-    { pts: withExtra.pts, color: "#38d996", fill: true }
+    { pts: schedule.pts, color: "#4f8cff", name: "On schedule" },
+    { pts: withExtra.pts, color: "#38d996", fill: true, name: "With extra payments" }
   ]);
   $("lo-table").innerHTML = "<tr><th>Year</th><th>Principal paid</th><th>Interest paid</th><th>Balance</th></tr>" +
     withExtra.rows.map(r2 => `<tr><td>${r2[0]}</td><td>${fmt(r2[1])}</td><td>${fmt(r2[2])}</td><td><b>${fmt(r2[3])}</b></td></tr>`).join("");
