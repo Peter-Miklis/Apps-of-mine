@@ -35,12 +35,28 @@
     --gold: #f5c542;
     --danger: #ff6b81;
     --radius: 14px;
+    --glow: #1a2a5e;
     font-size: 16px;
+  }
+  :root[data-theme="light"] {
+    --bg: #eef2fa;
+    --bg2: #ffffff;
+    --card: #ffffff;
+    --card2: #f7faff;
+    --border: #d3dcf0;
+    --text: #18213d;
+    --muted: #5b6788;
+    --accent: #2f6fe4;
+    --accent2: #0ea371;
+    --gold: #b98a00;
+    --danger: #d63a52;
+    --glow: #d9e5ff;
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
     font-family: "Segoe UI", system-ui, -apple-system, Roboto, sans-serif;
-    background: radial-gradient(1200px 600px at 70% -10%, #1a2a5e 0%, var(--bg) 55%);
+    background: radial-gradient(1200px 600px at 70% -10%, var(--glow) 0%, var(--bg) 55%);
+    transition: background .3s, color .3s;
     color: var(--text);
     min-height: 100vh;
     line-height: 1.5;
@@ -57,6 +73,12 @@
   h1 { font-size: 1.5rem; letter-spacing: .3px; }
   h1 span { color: var(--accent2); }
   .tagline { width: 100%; color: var(--muted); font-size: .95rem; margin-top: -6px; }
+  .controls { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+  .ctrl {
+    background: var(--card); color: var(--text); border: 1px solid var(--border);
+    padding: 8px 12px; border-radius: 10px; cursor: pointer; font-size: .9rem; font-family: inherit;
+  }
+  .ctrl:hover { border-color: var(--accent); }
 
   nav { display: flex; gap: 8px; flex-wrap: wrap; margin: 22px 0 26px; }
   nav button {
@@ -122,7 +144,7 @@
   .adslot {
     margin: 26px 0; border: 1px dashed var(--border); border-radius: var(--radius);
     padding: 26px; text-align: center; color: var(--muted); font-size: .85rem;
-    background: rgba(16,24,50,.5);
+    background: var(--card);
   }
   .adslot b { color: var(--text); }
 
@@ -171,6 +193,15 @@
   <header>
     <div class="logo">💰</div>
     <h1>Wealth<span>Tools</span></h1>
+    <div class="controls">
+      <select id="currency" class="ctrl" title="Currency" aria-label="Currency">
+        <option value="USD">$ USD</option><option value="EUR">€ EUR</option><option value="GBP">£ GBP</option>
+        <option value="CHF">CHF</option><option value="CAD">$ CAD</option><option value="AUD">$ AUD</option>
+        <option value="JPY">¥ JPY</option><option value="INR">₹ INR</option><option value="PLN">zł PLN</option>
+        <option value="CZK">Kč CZK</option><option value="HUF">Ft HUF</option><option value="SEK">kr SEK</option>
+      </select>
+      <button id="themeBtn" class="ctrl" title="Toggle light/dark theme" aria-label="Toggle theme">☀️</button>
+    </div>
     <p class="tagline">Free financial calculators — compound growth, dividends, FIRE, real estate &amp; savings. Instant results, no signup.</p>
   </header>
 
@@ -623,8 +654,17 @@
 <script>
 "use strict";
 const $ = id => document.getElementById(id);
-const fmt = n => n.toLocaleString(undefined, { style: "currency", currency: "USD", maximumFractionDigits: 0 });
-const fmtC = n => n.toLocaleString(undefined, { style: "currency", currency: "USD", maximumFractionDigits: 2 });
+let CUR = localStorage.getItem("wt-cur") || "USD";
+let CUR_SYM = "$";
+function updateCurSym() {
+  try {
+    CUR_SYM = (0).toLocaleString(undefined, { style: "currency", currency: CUR, maximumFractionDigits: 0 })
+      .replace(/[0-9\s.,]/g, "") || "$";
+  } catch (e) { CUR_SYM = "$"; }
+}
+updateCurSym();
+const fmt = n => n.toLocaleString(undefined, { style: "currency", currency: CUR, maximumFractionDigits: 0 });
+const fmtC = n => n.toLocaleString(undefined, { style: "currency", currency: CUR, maximumFractionDigits: 2 });
 const pct = n => n.toFixed(1) + "%";
 
 /* ── tabs ─────────────────────────────────────────────── */
@@ -671,18 +711,21 @@ function drawChart(svgId, series, opts = {}) {
   const X = x => padL + (x / maxX) * iw;
   const Y = y => padT + ih - (y / maxY) * ih;
 
+  const css = getComputedStyle(document.documentElement);
+  const gridC = css.getPropertyValue("--border").trim() || "#263566";
+  const mutedC = css.getPropertyValue("--muted").trim() || "#93a0c4";
   let out = "";
   const gridN = 5;
   for (let i = 0; i <= gridN; i++) {
     const gy = padT + (ih * i) / gridN;
     const v = maxY * (1 - i / gridN);
-    out += `<line x1="${padL}" y1="${gy}" x2="${W - padR}" y2="${gy}" stroke="#263566" stroke-width="1" stroke-dasharray="3 4"/>`;
-    out += `<text x="${padL - 8}" y="${gy + 4}" fill="#93a0c4" font-size="11" text-anchor="end">${shortNum(v)}</text>`;
+    out += `<line x1="${padL}" y1="${gy}" x2="${W - padR}" y2="${gy}" stroke="${gridC}" stroke-width="1" stroke-dasharray="3 4"/>`;
+    out += `<text x="${padL - 8}" y="${gy + 4}" fill="${mutedC}" font-size="11" text-anchor="end">${shortNum(v)}</text>`;
   }
   const xt = Math.min(10, Math.ceil(maxX));
   for (let i = 0; i <= xt; i++) {
     const xv = (maxX * i) / xt;
-    out += `<text x="${X(xv)}" y="${H - 8}" fill="#93a0c4" font-size="11" text-anchor="middle">${Math.round(xv)}y</text>`;
+    out += `<text x="${X(xv)}" y="${H - 8}" fill="${mutedC}" font-size="11" text-anchor="middle">${Math.round(xv)}y</text>`;
   }
   series.forEach(s => {
     const d = s.pts.map(([x, y], i) => `${i ? "L" : "M"}${X(x).toFixed(1)},${Y(y).toFixed(1)}`).join(" ");
@@ -701,9 +744,9 @@ function drawChart(svgId, series, opts = {}) {
   svg.innerHTML = out;
 }
 function shortNum(v) {
-  if (v >= 1e6) return "$" + (v / 1e6).toFixed(1) + "M";
-  if (v >= 1e3) return "$" + Math.round(v / 1e3) + "k";
-  return "$" + Math.round(v);
+  if (v >= 1e6) return CUR_SYM + (v / 1e6).toFixed(1) + "M";
+  if (v >= 1e3) return CUR_SYM + Math.round(v / 1e3) + "k";
+  return CUR_SYM + Math.round(v);
 }
 function stat(k, v, cls = "", hint = "") {
   return `<div class="stat"><div class="k">${k}</div><div class="v ${cls}">${v}</div>${hint ? `<div class="hint">${hint}</div>` : ""}</div>`;
@@ -1009,7 +1052,45 @@ function calcLoan() {
 
 /* ── dispatcher, share links, init ────────────────────── */
 const calcs = { compound: calcCompound, dividend: calcDividend, fire: calcFire, rental: calcRental, goal: calcGoal, debt: calcDebt, loan: calcLoan };
-function recalc() { calcs[currentTab](); }
+function recalc() { calcs[currentTab](); saveState(); }
+
+/* ── persistence (localStorage) ───────────────────────── */
+function saveState() {
+  try {
+    const o = { tab: currentTab };
+    document.querySelectorAll(".panel input[type=number], .panel select").forEach(el => { if (el.id) o[el.id] = el.value; });
+    localStorage.setItem("wt-state", JSON.stringify(o));
+  } catch (e) { /* private mode */ }
+}
+function loadState() {
+  try {
+    const o = JSON.parse(localStorage.getItem("wt-state") || "{}");
+    Object.keys(o).forEach(k => {
+      if (k === "tab") return;
+      const el = $(k);
+      if (el) { el.value = o[k]; const r2 = $(k + "-r"); if (r2) r2.value = o[k]; }
+    });
+    if (o.tab && calcs[o.tab]) showTab(o.tab);
+  } catch (e) { /* ignore corrupt state */ }
+}
+
+/* ── theme & currency ─────────────────────────────────── */
+function applyTheme(t) {
+  document.documentElement.dataset.theme = t;
+  $("themeBtn").textContent = t === "light" ? "🌙" : "☀️";
+  try { localStorage.setItem("wt-theme", t); } catch (e) {}
+}
+$("themeBtn").addEventListener("click", () => {
+  applyTheme(document.documentElement.dataset.theme === "light" ? "dark" : "light");
+  recalc(); // redraw charts with new palette
+});
+$("currency").value = CUR;
+$("currency").addEventListener("change", () => {
+  CUR = $("currency").value;
+  updateCurSym();
+  try { localStorage.setItem("wt-cur", CUR); } catch (e) {}
+  recalc();
+});
 
 function copyLink() {
   const params = new URLSearchParams({ tab: currentTab });
@@ -1036,7 +1117,10 @@ function loadFromURL() {
 }
 
 $("yr").textContent = new Date().getFullYear();
-loadFromURL();
+applyTheme(localStorage.getItem("wt-theme") ||
+  (window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark"));
+loadState();      // saved inputs first…
+loadFromURL();    // …then URL params win
 Object.values(calcs).forEach(fn => fn());
 </script>
 </body>
