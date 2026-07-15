@@ -1,9 +1,17 @@
 # WealthTools — passive income playbook
 
 `wealth-tools.html` is a single-file, zero-dependency financial calculator hub
-(compound interest, dividend income, FIRE, rental ROI, savings goal). Finance
-calculators attract steady, high-intent search traffic and cost nothing to run,
-which is what makes this a genuinely *passive* income project.
+with eight tools: compound interest (with inflation adjustment), dividend
+income (DRIP), FIRE number, rental property ROI, savings goal, debt payoff
+(avalanche vs snowball), loan/mortgage amortization, and retirement drawdown.
+Finance calculators attract steady, high-intent search traffic and cost nothing
+to run, which is what makes this a genuinely *passive* income project.
+
+Feature highlights: light/dark theme, 12 currencies, interactive chart
+tooltips, CSV export, downloadable 1200×630 result images for social posts,
+shareable parameterized links, saved inputs (localStorage), FAQ with FAQPage
+rich-results schema, mobile-clean layout, aria-labelled controls, and a print
+stylesheet.
 
 ## 1. Deploy for free (5 minutes)
 
