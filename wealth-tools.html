@@ -197,6 +197,19 @@
     border-radius: 999px; transition: transform .3s ease; z-index: 50; font-size: .9rem;
   }
   .toast.show { transform: translateX(-50%) translateY(0); }
+
+  #faq details { border-bottom: 1px solid var(--border); padding: 10px 4px; }
+  #faq details:last-of-type { border-bottom: none; }
+  #faq summary { cursor: pointer; font-weight: 600; font-size: .95rem; list-style-position: outside; }
+  #faq summary:hover { color: var(--accent); }
+  #faq details p { color: var(--muted); font-size: .88rem; padding: 10px 6px 4px 18px; max-width: 80ch; }
+
+  @media print {
+    nav, .adslot, .controls, .share-row, .csv-btn, footer, #affiliate, .seo-copy, #faq, input[type=range] { display: none !important; }
+    body { background: #fff; color: #000; }
+    .card, .stat { border-color: #ccc; break-inside: avoid; }
+    .table-scroll { max-height: none; overflow: visible; }
+  }
 </style>
 </head>
 <body>
@@ -266,6 +279,16 @@
             <option value="1">Annually</option>
           </select>
         </div>
+        <div class="field">
+          <label>Inflation adjustment</label>
+          <select id="ci-infl">
+            <option value="0" selected>Off — nominal values</option>
+            <option value="2">2% inflation</option>
+            <option value="2.5">2.5% inflation</option>
+            <option value="3">3% inflation</option>
+            <option value="4">4% inflation</option>
+          </select>
+        </div>
         <div class="share-row">
           <button class="btn primary" onclick="copyLink()">🔗 Copy shareable link</button>
         </div>
@@ -278,6 +301,7 @@
             <span><i style="background:var(--accent)"></i>Total balance</span>
             <span><i style="background:var(--gold)"></i>Contributions</span>
             <span><i style="background:var(--accent2)"></i>Interest earned</span>
+            <span id="ci-real-lg" style="display:none"><i style="background:#b48cff"></i>Real value (today's money)</span>
           </div>
         </div>
         <div class="card" style="margin-top:22px">
@@ -645,6 +669,29 @@
     <p>Dividend portfolios pay you in cash on a schedule, making them one of the most genuinely passive income streams available. Reinvesting dividends (DRIP) during the growth years and switching to cash payouts later is the classic playbook — the calculator above models both modes.</p>
   </div>
 
+  <div class="card" style="margin-top:36px" id="faq">
+    <h2>Frequently asked questions</h2>
+    <p class="sub">Quick answers to the most common money-math questions.</p>
+    <details><summary>What return should I assume for stock investments?</summary><p>The S&amp;P 500 has historically returned about 10% per year before inflation, or roughly 7% after inflation. Using 6–7% is a common conservative default for long-term planning. Past performance never guarantees future results.</p></details>
+    <details><summary>Is the 4% rule still safe for early retirement?</summary><p>The 4% rule comes from the Trinity Study of 30-year retirements. For retirements of 40–50 years, many planners suggest 3.25–3.75% instead. Try both in the FIRE calculator — a 0.5% change moves the target by hundreds of thousands.</p></details>
+    <details><summary>Should I pay off debt or invest first?</summary><p>A common rule of thumb: pay off any debt with an interest rate above ~7% before investing beyond an employer match, since that's a guaranteed "return" comparable to stocks. Low-rate mortgages are usually kept while investing.</p></details>
+    <details><summary>How much house cash flow counts as a good rental?</summary><p>Many investors want at least $100–$200 per month per unit in positive cash flow plus a cash-on-cash return above 8%. The rental calculator shows both instantly.</p></details>
+    <details><summary>Does dividend reinvestment (DRIP) really matter?</summary><p>Enormously. Reinvested dividends buy shares that pay their own dividends — over decades this compounding typically accounts for a large share of total stock market returns. Toggle DRIP in the dividend calculator to see the gap.</p></details>
+    <details><summary>Are these calculators accurate?</summary><p>They use standard financial formulas (compound interest, annuity payments, amortization) computed monthly. Real-world results differ due to taxes, fees and variable returns, so treat outputs as planning estimates, not predictions.</p></details>
+  </div>
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+      {"@type":"Question","name":"What return should I assume for stock investments?","acceptedAnswer":{"@type":"Answer","text":"The S&P 500 has historically returned about 10% per year before inflation, or roughly 7% after inflation. Using 6-7% is a common conservative default for long-term planning."}},
+      {"@type":"Question","name":"Is the 4% rule still safe for early retirement?","acceptedAnswer":{"@type":"Answer","text":"The 4% rule comes from the Trinity Study of 30-year retirements. For retirements of 40-50 years, many planners suggest 3.25-3.75% instead."}},
+      {"@type":"Question","name":"Should I pay off debt or invest first?","acceptedAnswer":{"@type":"Answer","text":"A common rule of thumb: pay off any debt with an interest rate above about 7% before investing beyond an employer match. Low-rate mortgages are usually kept while investing."}},
+      {"@type":"Question","name":"Does dividend reinvestment (DRIP) really matter?","acceptedAnswer":{"@type":"Answer","text":"Yes - reinvested dividends buy shares that pay their own dividends, and over decades this compounding accounts for a large share of total stock market returns."}}
+    ]
+  }
+  </script>
+
   <footer>
     <div class="cols">
       <div>
@@ -684,10 +731,20 @@ const pct = n => n.toFixed(1) + "%";
 
 /* ── tabs ─────────────────────────────────────────────── */
 let currentTab = "compound";
+const tabTitles = {
+  compound: "Compound Interest Calculator",
+  dividend: "Dividend Income Calculator",
+  fire: "FIRE Calculator — When Can I Retire Early?",
+  rental: "Rental Property ROI Calculator",
+  goal: "Savings Goal Calculator",
+  debt: "Debt Payoff Calculator (Avalanche vs Snowball)",
+  loan: "Loan & Mortgage Calculator"
+};
 function showTab(name) {
   currentTab = name;
   document.querySelectorAll("#tabs button").forEach(b => b.classList.toggle("active", b.dataset.tab === name));
   document.querySelectorAll(".panel").forEach(p => p.classList.toggle("active", p.id === "panel-" + name));
+  document.title = tabTitles[name] + " — Free | WealthTools";
   recalc();
 }
 document.querySelectorAll("#tabs button").forEach(b => b.addEventListener("click", () => showTab(b.dataset.tab)));
@@ -707,7 +764,7 @@ pairs.forEach(id => {
   num.addEventListener("input", () => { rng.value = num.value; recalc(); });
   rng.addEventListener("input", () => { num.value = rng.value; recalc(); });
 });
-["ci-freq","dv-drip","re-term","db-strategy"].forEach(id => $(id).addEventListener("change", recalc));
+["ci-freq","ci-infl","dv-drip","re-term","db-strategy"].forEach(id => $(id).addEventListener("change", recalc));
 // plain inputs without a paired slider (debt rows)
 ["db-b1","db-r1","db-m1","db-b2","db-r2","db-m2","db-b3","db-r3","db-m3"].forEach(id => $(id).addEventListener("input", recalc));
 
@@ -842,15 +899,21 @@ function calcCompound() {
     rows.push([y, contrib, bal - contrib, bal]);
   }
   const interest = bal - contrib;
+  const infl = parseFloat($("ci-infl").value) / 100;
+  const realFinal = bal / Math.pow(1 + infl, years);
   $("ci-results").innerHTML =
     stat("Final balance", fmt(bal), "blue") +
     stat("Total contributed", fmt(contrib), "gold") +
-    stat("Interest earned", fmt(interest), "green", contrib > 0 ? Math.round((interest / contrib) * 100) + "% growth on contributions" : "");
-  drawChart("ci-chart", [
+    stat("Interest earned", fmt(interest), "green", contrib > 0 ? Math.round((interest / contrib) * 100) + "% growth on contributions" : "") +
+    (infl > 0 ? stat("Real value in today's money", fmt(realFinal), "", "after " + (infl * 100) + "% annual inflation") : "");
+  const series = [
     { pts, color: "#4f8cff", fill: true, name: "Total balance" },
     { pts: contribPts, color: "#f5c542", name: "Contributions" },
     { pts: interestPts, color: "#38d996", name: "Interest earned" }
-  ]);
+  ];
+  if (infl > 0) series.push({ pts: pts.map(([x, v]) => [x, v / Math.pow(1 + infl, x)]), color: "#b48cff", name: "Real value" });
+  $("ci-real-lg").style.display = infl > 0 ? "" : "none";
+  drawChart("ci-chart", series);
   $("ci-table").innerHTML = "<tr><th>Year</th><th>Contributed</th><th>Interest</th><th>Balance</th></tr>" +
     rows.map(r2 => `<tr><td>${r2[0]}</td><td>${fmt(r2[1])}</td><td>${fmt(r2[2])}</td><td><b>${fmt(r2[3])}</b></td></tr>`).join("");
 }
