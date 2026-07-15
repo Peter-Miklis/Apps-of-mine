@@ -1,0 +1,790 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WealthTools — Free Compound Interest, Dividend, FIRE &amp; Rental ROI Calculators</title>
+<meta name="description" content="Free financial calculators: compound interest with charts, dividend income, FIRE retirement number, rental property ROI, and savings goal planner. No signup, instant results.">
+<meta name="keywords" content="compound interest calculator, dividend calculator, FIRE calculator, rental property ROI, savings goal calculator, passive income calculator">
+<meta property="og:title" content="WealthTools — Free Financial Calculators">
+<meta property="og:description" content="Compound interest, dividend income, FIRE number, rental ROI and savings calculators. Free, instant, no signup.">
+<meta property="og:type" content="website">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='0.9em' font-size='90'>💰</text></svg>">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  "name": "WealthTools",
+  "applicationCategory": "FinanceApplication",
+  "operatingSystem": "Any",
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+  "description": "Free financial calculators: compound interest, dividend income, FIRE number, rental property ROI, savings goals."
+}
+</script>
+<style>
+  :root {
+    --bg: #0b1020;
+    --bg2: #101832;
+    --card: #151f3d;
+    --card2: #1b2750;
+    --border: #263566;
+    --text: #e8ecf8;
+    --muted: #93a0c4;
+    --accent: #4f8cff;
+    --accent2: #38d996;
+    --gold: #f5c542;
+    --danger: #ff6b81;
+    --radius: 14px;
+    font-size: 16px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: "Segoe UI", system-ui, -apple-system, Roboto, sans-serif;
+    background: radial-gradient(1200px 600px at 70% -10%, #1a2a5e 0%, var(--bg) 55%);
+    color: var(--text);
+    min-height: 100vh;
+    line-height: 1.5;
+  }
+  .wrap { max-width: 1100px; margin: 0 auto; padding: 0 20px 60px; }
+
+  header { padding: 28px 0 10px; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+  .logo {
+    width: 46px; height: 46px; border-radius: 12px; flex: none;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    display: grid; place-items: center; font-size: 24px;
+    box-shadow: 0 6px 20px rgba(79,140,255,.35);
+  }
+  h1 { font-size: 1.5rem; letter-spacing: .3px; }
+  h1 span { color: var(--accent2); }
+  .tagline { width: 100%; color: var(--muted); font-size: .95rem; margin-top: -6px; }
+
+  nav { display: flex; gap: 8px; flex-wrap: wrap; margin: 22px 0 26px; }
+  nav button {
+    background: var(--card); color: var(--muted); border: 1px solid var(--border);
+    padding: 10px 16px; border-radius: 999px; cursor: pointer; font-size: .92rem;
+    transition: all .18s ease; font-family: inherit;
+  }
+  nav button:hover { color: var(--text); border-color: var(--accent); }
+  nav button.active {
+    background: linear-gradient(135deg, var(--accent), #6aa4ff);
+    color: #fff; border-color: transparent; font-weight: 600;
+    box-shadow: 0 4px 16px rgba(79,140,255,.35);
+  }
+
+  .panel { display: none; animation: fade .25s ease; }
+  .panel.active { display: block; }
+  @keyframes fade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+  .grid { display: grid; grid-template-columns: 380px 1fr; gap: 22px; align-items: start; }
+  @media (max-width: 860px) { .grid { grid-template-columns: 1fr; } }
+
+  .card {
+    background: linear-gradient(180deg, var(--card2), var(--card));
+    border: 1px solid var(--border); border-radius: var(--radius); padding: 22px;
+  }
+  .card h2 { font-size: 1.1rem; margin-bottom: 4px; }
+  .card p.sub { color: var(--muted); font-size: .85rem; margin-bottom: 18px; }
+
+  .field { margin-bottom: 16px; }
+  .field label { display: flex; justify-content: space-between; font-size: .85rem; color: var(--muted); margin-bottom: 6px; }
+  .field label b { color: var(--text); font-variant-numeric: tabular-nums; }
+  .field input[type=number], .field select {
+    width: 100%; background: var(--bg2); border: 1px solid var(--border); color: var(--text);
+    padding: 10px 12px; border-radius: 10px; font-size: 1rem; font-family: inherit;
+  }
+  .field input[type=number]:focus, .field select:focus { outline: none; border-color: var(--accent); }
+  input[type=range] { width: 100%; accent-color: var(--accent); margin-top: 8px; }
+
+  .results { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 18px; }
+  .stat {
+    background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px;
+  }
+  .stat .k { color: var(--muted); font-size: .75rem; text-transform: uppercase; letter-spacing: .6px; }
+  .stat .v { font-size: 1.45rem; font-weight: 700; margin-top: 2px; font-variant-numeric: tabular-nums; }
+  .stat .v.green { color: var(--accent2); }
+  .stat .v.gold { color: var(--gold); }
+  .stat .v.blue { color: var(--accent); }
+  .stat .v.red { color: var(--danger); }
+  .stat .hint { color: var(--muted); font-size: .75rem; margin-top: 2px; }
+
+  .chart-card { padding: 18px 18px 10px; }
+  svg.chart { width: 100%; height: auto; display: block; }
+  .legend { display: flex; gap: 18px; padding: 8px 6px 6px; font-size: .8rem; color: var(--muted); flex-wrap: wrap; }
+  .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; }
+
+  table.breakdown { width: 100%; border-collapse: collapse; font-size: .85rem; margin-top: 14px; }
+  table.breakdown th, table.breakdown td { padding: 8px 10px; text-align: right; font-variant-numeric: tabular-nums; }
+  table.breakdown th { color: var(--muted); font-weight: 600; border-bottom: 1px solid var(--border); }
+  table.breakdown td { border-bottom: 1px solid rgba(38,53,102,.4); }
+  table.breakdown th:first-child, table.breakdown td:first-child { text-align: left; }
+  .table-scroll { max-height: 300px; overflow-y: auto; border-radius: 10px; }
+
+  .adslot {
+    margin: 26px 0; border: 1px dashed var(--border); border-radius: var(--radius);
+    padding: 26px; text-align: center; color: var(--muted); font-size: .85rem;
+    background: rgba(16,24,50,.5);
+  }
+  .adslot b { color: var(--text); }
+
+  .verdict { margin-top: 4px; padding: 12px 14px; border-radius: 10px; font-size: .88rem; background: var(--bg2); border: 1px solid var(--border); }
+  .verdict.good { border-color: rgba(56,217,150,.5); }
+  .verdict.bad { border-color: rgba(255,107,129,.5); }
+
+  .share-row { display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
+  .btn {
+    background: var(--bg2); border: 1px solid var(--border); color: var(--text);
+    padding: 9px 16px; border-radius: 10px; cursor: pointer; font-size: .88rem; font-family: inherit;
+    transition: border-color .15s;
+  }
+  .btn:hover { border-color: var(--accent); }
+  .btn.primary { background: linear-gradient(135deg, var(--accent2), #2bb87e); border: none; color: #06251a; font-weight: 700; }
+
+  footer { margin-top: 46px; border-top: 1px solid var(--border); padding-top: 22px; color: var(--muted); font-size: .82rem; }
+  footer .cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 18px; margin-bottom: 18px; }
+  footer h3 { color: var(--text); font-size: .9rem; margin-bottom: 8px; }
+  footer a { color: var(--accent); text-decoration: none; }
+
+  .seo-copy { margin-top: 36px; color: var(--muted); font-size: .9rem; }
+  .seo-copy h2 { color: var(--text); font-size: 1.05rem; margin: 22px 0 8px; }
+  .seo-copy p { margin-bottom: 10px; max-width: 75ch; }
+
+  .toast {
+    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(80px);
+    background: var(--accent2); color: #06251a; font-weight: 700; padding: 12px 22px;
+    border-radius: 999px; transition: transform .3s ease; z-index: 50; font-size: .9rem;
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="logo">💰</div>
+    <h1>Wealth<span>Tools</span></h1>
+    <p class="tagline">Free financial calculators — compound growth, dividends, FIRE, real estate &amp; savings. Instant results, no signup.</p>
+  </header>
+
+  <!-- ═══ AD SLOT: top leaderboard ═══════════════════════════════════════
+       Paste your Google AdSense (or other network) unit here and delete
+       the placeholder div. Recommended: responsive display unit. -->
+  <div class="adslot"><b>Ad space</b> — top leaderboard (paste your AdSense unit here)</div>
+
+  <nav id="tabs">
+    <button data-tab="compound" class="active">📈 Compound Interest</button>
+    <button data-tab="dividend">💵 Dividend Income</button>
+    <button data-tab="fire">🔥 FIRE Number</button>
+    <button data-tab="rental">🏠 Rental ROI</button>
+    <button data-tab="goal">🎯 Savings Goal</button>
+  </nav>
+
+  <!-- ══════════════════ COMPOUND INTEREST ══════════════════ -->
+  <section class="panel active" id="panel-compound">
+    <div class="grid">
+      <div class="card">
+        <h2>Compound Interest Calculator</h2>
+        <p class="sub">See how your money grows with regular contributions.</p>
+        <div class="field">
+          <label>Initial investment <b id="ci-p0-v"></b></label>
+          <input type="number" id="ci-p0" value="10000" min="0" step="500">
+          <input type="range" id="ci-p0-r" min="0" max="200000" step="500" value="10000">
+        </div>
+        <div class="field">
+          <label>Monthly contribution <b id="ci-pmt-v"></b></label>
+          <input type="number" id="ci-pmt" value="500" min="0" step="50">
+          <input type="range" id="ci-pmt-r" min="0" max="5000" step="50" value="500">
+        </div>
+        <div class="field">
+          <label>Annual return (%) <b id="ci-r-v"></b></label>
+          <input type="number" id="ci-r" value="7" min="0" max="30" step="0.1">
+          <input type="range" id="ci-r-r" min="0" max="20" step="0.1" value="7">
+        </div>
+        <div class="field">
+          <label>Years <b id="ci-y-v"></b></label>
+          <input type="number" id="ci-y" value="25" min="1" max="60" step="1">
+          <input type="range" id="ci-y-r" min="1" max="50" step="1" value="25">
+        </div>
+        <div class="field">
+          <label>Compounding frequency</label>
+          <select id="ci-freq">
+            <option value="12" selected>Monthly</option>
+            <option value="4">Quarterly</option>
+            <option value="1">Annually</option>
+          </select>
+        </div>
+        <div class="share-row">
+          <button class="btn primary" onclick="copyLink()">🔗 Copy shareable link</button>
+        </div>
+      </div>
+      <div>
+        <div class="results" id="ci-results"></div>
+        <div class="card chart-card">
+          <svg class="chart" id="ci-chart" viewBox="0 0 640 320" role="img" aria-label="Growth chart"></svg>
+          <div class="legend">
+            <span><i style="background:var(--accent)"></i>Total balance</span>
+            <span><i style="background:var(--gold)"></i>Contributions</span>
+            <span><i style="background:var(--accent2)"></i>Interest earned</span>
+          </div>
+        </div>
+        <div class="card" style="margin-top:22px">
+          <h2>Year-by-year breakdown</h2>
+          <div class="table-scroll"><table class="breakdown" id="ci-table"></table></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════ DIVIDEND INCOME ══════════════════ -->
+  <section class="panel" id="panel-dividend">
+    <div class="grid">
+      <div class="card">
+        <h2>Dividend Income Calculator</h2>
+        <p class="sub">Project your passive income from dividend stocks &amp; ETFs, with DRIP reinvestment.</p>
+        <div class="field">
+          <label>Portfolio value <b id="dv-p0-v"></b></label>
+          <input type="number" id="dv-p0" value="50000" min="0" step="1000">
+          <input type="range" id="dv-p0-r" min="0" max="1000000" step="5000" value="50000">
+        </div>
+        <div class="field">
+          <label>Monthly contribution <b id="dv-pmt-v"></b></label>
+          <input type="number" id="dv-pmt" value="500" min="0" step="50">
+          <input type="range" id="dv-pmt-r" min="0" max="5000" step="50" value="500">
+        </div>
+        <div class="field">
+          <label>Dividend yield (%) <b id="dv-yield-v"></b></label>
+          <input type="number" id="dv-yield" value="3.5" min="0" max="15" step="0.1">
+          <input type="range" id="dv-yield-r" min="0" max="12" step="0.1" value="3.5">
+        </div>
+        <div class="field">
+          <label>Annual dividend growth (%) <b id="dv-dg-v"></b></label>
+          <input type="number" id="dv-dg" value="5" min="0" max="20" step="0.5">
+          <input type="range" id="dv-dg-r" min="0" max="15" step="0.5" value="5">
+        </div>
+        <div class="field">
+          <label>Share price appreciation (%/yr) <b id="dv-pa-v"></b></label>
+          <input type="number" id="dv-pa" value="4" min="0" max="20" step="0.5">
+          <input type="range" id="dv-pa-r" min="0" max="15" step="0.5" value="4">
+        </div>
+        <div class="field">
+          <label>Years <b id="dv-y-v"></b></label>
+          <input type="number" id="dv-y" value="20" min="1" max="50" step="1">
+          <input type="range" id="dv-y-r" min="1" max="40" step="1" value="20">
+        </div>
+        <div class="field">
+          <label>Reinvest dividends (DRIP)</label>
+          <select id="dv-drip"><option value="1" selected>Yes — reinvest</option><option value="0">No — take as income</option></select>
+        </div>
+        <div class="share-row">
+          <button class="btn primary" onclick="copyLink()">🔗 Copy shareable link</button>
+        </div>
+      </div>
+      <div>
+        <div class="results" id="dv-results"></div>
+        <div class="card chart-card">
+          <svg class="chart" id="dv-chart" viewBox="0 0 640 320" role="img" aria-label="Dividend income chart"></svg>
+          <div class="legend">
+            <span><i style="background:var(--accent2)"></i>Annual dividend income</span>
+            <span><i style="background:var(--accent)"></i>Portfolio value (scaled)</span>
+          </div>
+        </div>
+        <div class="card" style="margin-top:22px">
+          <h2>Income by year</h2>
+          <div class="table-scroll"><table class="breakdown" id="dv-table"></table></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════ FIRE ══════════════════ -->
+  <section class="panel" id="panel-fire">
+    <div class="grid">
+      <div class="card">
+        <h2>FIRE Calculator</h2>
+        <p class="sub">Find your Financial Independence number and the year you can retire early.</p>
+        <div class="field">
+          <label>Current age <b id="fi-age-v"></b></label>
+          <input type="number" id="fi-age" value="30" min="16" max="80" step="1">
+          <input type="range" id="fi-age-r" min="18" max="70" step="1" value="30">
+        </div>
+        <div class="field">
+          <label>Current invested savings <b id="fi-p0-v"></b></label>
+          <input type="number" id="fi-p0" value="40000" min="0" step="1000">
+          <input type="range" id="fi-p0-r" min="0" max="1000000" step="5000" value="40000">
+        </div>
+        <div class="field">
+          <label>Annual spending in retirement <b id="fi-spend-v"></b></label>
+          <input type="number" id="fi-spend" value="40000" min="1000" step="1000">
+          <input type="range" id="fi-spend-r" min="10000" max="200000" step="1000" value="40000">
+        </div>
+        <div class="field">
+          <label>Monthly investing <b id="fi-pmt-v"></b></label>
+          <input type="number" id="fi-pmt" value="1500" min="0" step="100">
+          <input type="range" id="fi-pmt-r" min="0" max="10000" step="100" value="1500">
+        </div>
+        <div class="field">
+          <label>Expected real return (%/yr, after inflation) <b id="fi-r-v"></b></label>
+          <input type="number" id="fi-r" value="5" min="0" max="15" step="0.1">
+          <input type="range" id="fi-r-r" min="0" max="12" step="0.1" value="5">
+        </div>
+        <div class="field">
+          <label>Safe withdrawal rate (%) <b id="fi-swr-v"></b></label>
+          <input type="number" id="fi-swr" value="4" min="2" max="8" step="0.1">
+          <input type="range" id="fi-swr-r" min="2.5" max="6" step="0.1" value="4">
+        </div>
+        <div class="share-row">
+          <button class="btn primary" onclick="copyLink()">🔗 Copy shareable link</button>
+        </div>
+      </div>
+      <div>
+        <div class="results" id="fi-results"></div>
+        <div class="card chart-card">
+          <svg class="chart" id="fi-chart" viewBox="0 0 640 320" role="img" aria-label="Path to FIRE chart"></svg>
+          <div class="legend">
+            <span><i style="background:var(--accent)"></i>Portfolio</span>
+            <span><i style="background:var(--gold)"></i>FIRE number</span>
+          </div>
+        </div>
+        <div class="card" style="margin-top:22px">
+          <h2>What the numbers mean</h2>
+          <p class="sub" style="margin-bottom:8px">Your <b style="color:var(--gold)">FIRE number</b> is annual spending ÷ safe withdrawal rate — the portfolio size where investments can fund your lifestyle indefinitely. Using a <b>real</b> (inflation-adjusted) return keeps everything in today's money.</p>
+          <div class="verdict" id="fi-verdict"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════ RENTAL ROI ══════════════════ -->
+  <section class="panel" id="panel-rental">
+    <div class="grid">
+      <div class="card">
+        <h2>Rental Property ROI</h2>
+        <p class="sub">Cash flow, cap rate and cash-on-cash return for a rental purchase.</p>
+        <div class="field">
+          <label>Purchase price <b id="re-price-v"></b></label>
+          <input type="number" id="re-price" value="250000" min="0" step="5000">
+          <input type="range" id="re-price-r" min="50000" max="1500000" step="5000" value="250000">
+        </div>
+        <div class="field">
+          <label>Down payment (%) <b id="re-down-v"></b></label>
+          <input type="number" id="re-down" value="20" min="0" max="100" step="1">
+          <input type="range" id="re-down-r" min="0" max="100" step="1" value="20">
+        </div>
+        <div class="field">
+          <label>Mortgage rate (%/yr) <b id="re-rate-v"></b></label>
+          <input type="number" id="re-rate" value="6.5" min="0" max="15" step="0.1">
+          <input type="range" id="re-rate-r" min="0" max="12" step="0.1" value="6.5">
+        </div>
+        <div class="field">
+          <label>Loan term (years)</label>
+          <select id="re-term"><option value="30" selected>30</option><option value="25">25</option><option value="20">20</option><option value="15">15</option></select>
+        </div>
+        <div class="field">
+          <label>Monthly rent <b id="re-rent-v"></b></label>
+          <input type="number" id="re-rent" value="2000" min="0" step="50">
+          <input type="range" id="re-rent-r" min="0" max="10000" step="50" value="2000">
+        </div>
+        <div class="field">
+          <label>Monthly expenses (tax, insurance, maintenance, HOA) <b id="re-exp-v"></b></label>
+          <input type="number" id="re-exp" value="450" min="0" step="25">
+          <input type="range" id="re-exp-r" min="0" max="3000" step="25" value="450">
+        </div>
+        <div class="field">
+          <label>Vacancy rate (%) <b id="re-vac-v"></b></label>
+          <input type="number" id="re-vac" value="5" min="0" max="30" step="1">
+          <input type="range" id="re-vac-r" min="0" max="25" step="1" value="5">
+        </div>
+        <div class="field">
+          <label>Closing costs <b id="re-close-v"></b></label>
+          <input type="number" id="re-close" value="6000" min="0" step="500">
+          <input type="range" id="re-close-r" min="0" max="50000" step="500" value="6000">
+        </div>
+        <div class="share-row">
+          <button class="btn primary" onclick="copyLink()">🔗 Copy shareable link</button>
+        </div>
+      </div>
+      <div>
+        <div class="results" id="re-results"></div>
+        <div class="card">
+          <h2>Deal check</h2>
+          <div class="verdict" id="re-verdict"></div>
+          <table class="breakdown" id="re-table"></table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════ SAVINGS GOAL ══════════════════ -->
+  <section class="panel" id="panel-goal">
+    <div class="grid">
+      <div class="card">
+        <h2>Savings Goal Planner</h2>
+        <p class="sub">How much to save each month to hit a target by a deadline.</p>
+        <div class="field">
+          <label>Goal amount <b id="go-goal-v"></b></label>
+          <input type="number" id="go-goal" value="100000" min="100" step="1000">
+          <input type="range" id="go-goal-r" min="1000" max="1000000" step="1000" value="100000">
+        </div>
+        <div class="field">
+          <label>Already saved <b id="go-p0-v"></b></label>
+          <input type="number" id="go-p0" value="10000" min="0" step="500">
+          <input type="range" id="go-p0-r" min="0" max="500000" step="500" value="10000">
+        </div>
+        <div class="field">
+          <label>Years to goal <b id="go-y-v"></b></label>
+          <input type="number" id="go-y" value="8" min="1" max="50" step="1">
+          <input type="range" id="go-y-r" min="1" max="40" step="1" value="8">
+        </div>
+        <div class="field">
+          <label>Annual return (%) <b id="go-r-v"></b></label>
+          <input type="number" id="go-r" value="5" min="0" max="20" step="0.1">
+          <input type="range" id="go-r-r" min="0" max="15" step="0.1" value="5">
+        </div>
+        <div class="share-row">
+          <button class="btn primary" onclick="copyLink()">🔗 Copy shareable link</button>
+        </div>
+      </div>
+      <div>
+        <div class="results" id="go-results"></div>
+        <div class="card chart-card">
+          <svg class="chart" id="go-chart" viewBox="0 0 640 320" role="img" aria-label="Savings progress chart"></svg>
+          <div class="legend">
+            <span><i style="background:var(--accent)"></i>Projected balance</span>
+            <span><i style="background:var(--gold)"></i>Goal</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ AD SLOT: mid-content ═══════════════════════════════════════════ -->
+  <div class="adslot"><b>Ad space</b> — mid-content rectangle (paste your ad unit here)</div>
+
+  <!-- ═══ AFFILIATE SLOT ═════════════════════════════════════════════════
+       Replace # links with your affiliate URLs (broker sign-up bonuses,
+       robo-advisors, budgeting apps, real-estate platforms, etc.). -->
+  <div class="card" id="affiliate">
+    <h2>Ready to put the numbers to work?</h2>
+    <p class="sub">Tools our readers use to start investing. <em style="opacity:.7">(Affiliate disclosure: we may earn a commission at no cost to you.)</em></p>
+    <div class="results">
+      <div class="stat"><div class="k">Brokerage</div><div class="v blue" style="font-size:1rem"><a href="#" style="color:inherit">Your broker affiliate link →</a></div><div class="hint">Commission-free index investing</div></div>
+      <div class="stat"><div class="k">High-yield savings</div><div class="v green" style="font-size:1rem"><a href="#" style="color:inherit">Your HYSA affiliate link →</a></div><div class="hint">Park cash while it earns</div></div>
+      <div class="stat"><div class="k">Real estate</div><div class="v gold" style="font-size:1rem"><a href="#" style="color:inherit">Your REIT platform link →</a></div><div class="hint">Property income without a mortgage</div></div>
+    </div>
+  </div>
+
+  <div class="seo-copy">
+    <h2>How compound interest builds wealth</h2>
+    <p>Compound interest means your returns start earning returns of their own. A one-time $10,000 investment at 7% becomes roughly $76,000 in 30 years without adding a cent — and adding a steady monthly contribution multiplies the effect dramatically. The two biggest levers are <b>time in the market</b> and <b>contribution consistency</b>, not picking perfect investments.</p>
+    <h2>What is a FIRE number?</h2>
+    <p>Your FIRE (Financial Independence, Retire Early) number is the portfolio size at which a safe withdrawal rate — commonly 4% — covers your annual spending forever. Spend $40,000 a year and your FIRE number is about $1,000,000. Lowering annual spending is the fastest way to shrink the target.</p>
+    <h2>Evaluating a rental property</h2>
+    <p>Three numbers tell you most of the story: <b>monthly cash flow</b> (rent minus all costs and mortgage), <b>cap rate</b> (net operating income ÷ purchase price), and <b>cash-on-cash return</b> (annual cash flow ÷ cash invested). Many investors look for positive cash flow from day one and a cash-on-cash return above 6–8%.</p>
+    <h2>Is dividend investing really passive income?</h2>
+    <p>Dividend portfolios pay you in cash on a schedule, making them one of the most genuinely passive income streams available. Reinvesting dividends (DRIP) during the growth years and switching to cash payouts later is the classic playbook — the calculator above models both modes.</p>
+  </div>
+
+  <footer>
+    <div class="cols">
+      <div>
+        <h3>WealthTools</h3>
+        <p>Free, private, instant financial calculators. All math runs in your browser — nothing is uploaded or stored.</p>
+      </div>
+      <div>
+        <h3>Calculators</h3>
+        <p><a href="#" onclick="showTab('compound');return false">Compound Interest</a> · <a href="#" onclick="showTab('dividend');return false">Dividend Income</a> · <a href="#" onclick="showTab('fire');return false">FIRE</a> · <a href="#" onclick="showTab('rental');return false">Rental ROI</a> · <a href="#" onclick="showTab('goal');return false">Savings Goal</a></p>
+      </div>
+      <div>
+        <h3>Disclaimer</h3>
+        <p>Educational estimates only — not financial advice. Returns are hypothetical; markets involve risk. Consult a licensed advisor before investing.</p>
+      </div>
+    </div>
+    <p>© <span id="yr"></span> WealthTools. All rights reserved.</p>
+  </footer>
+</div>
+
+<div class="toast" id="toast">Link copied!</div>
+
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+const fmt = n => n.toLocaleString(undefined, { style: "currency", currency: "USD", maximumFractionDigits: 0 });
+const fmtC = n => n.toLocaleString(undefined, { style: "currency", currency: "USD", maximumFractionDigits: 2 });
+const pct = n => n.toFixed(1) + "%";
+
+/* ── tabs ─────────────────────────────────────────────── */
+let currentTab = "compound";
+function showTab(name) {
+  currentTab = name;
+  document.querySelectorAll("#tabs button").forEach(b => b.classList.toggle("active", b.dataset.tab === name));
+  document.querySelectorAll(".panel").forEach(p => p.classList.toggle("active", p.id === "panel-" + name));
+  recalc();
+}
+document.querySelectorAll("#tabs button").forEach(b => b.addEventListener("click", () => showTab(b.dataset.tab)));
+
+/* ── input/slider pairing ─────────────────────────────── */
+const pairs = [
+  "ci-p0","ci-pmt","ci-r","ci-y",
+  "dv-p0","dv-pmt","dv-yield","dv-dg","dv-pa","dv-y",
+  "fi-age","fi-p0","fi-spend","fi-pmt","fi-r","fi-swr",
+  "re-price","re-down","re-rate","re-rent","re-exp","re-vac","re-close",
+  "go-goal","go-p0","go-y","go-r"
+];
+pairs.forEach(id => {
+  const num = $(id), rng = $(id + "-r");
+  num.addEventListener("input", () => { rng.value = num.value; recalc(); });
+  rng.addEventListener("input", () => { num.value = rng.value; recalc(); });
+});
+["ci-freq","dv-drip","re-term"].forEach(id => $(id).addEventListener("change", recalc));
+
+const val = id => parseFloat($(id).value) || 0;
+function setLabel(id, text) { const el = $(id + "-v"); if (el) el.textContent = text; }
+
+/* ── SVG chart helper ─────────────────────────────────── */
+function drawChart(svgId, series, opts = {}) {
+  const svg = $(svgId);
+  const W = 640, H = 320, padL = 62, padR = 16, padT = 14, padB = 30;
+  const iw = W - padL - padR, ih = H - padT - padB;
+  let maxY = 0, maxX = 0;
+  series.forEach(s => s.pts.forEach(([x, y]) => { if (y > maxY) maxY = y; if (x > maxX) maxX = x; }));
+  if (opts.hline && opts.hline > maxY) maxY = opts.hline;
+  maxY = maxY * 1.08 || 1; maxX = maxX || 1;
+  const X = x => padL + (x / maxX) * iw;
+  const Y = y => padT + ih - (y / maxY) * ih;
+
+  let out = "";
+  const gridN = 5;
+  for (let i = 0; i <= gridN; i++) {
+    const gy = padT + (ih * i) / gridN;
+    const v = maxY * (1 - i / gridN);
+    out += `<line x1="${padL}" y1="${gy}" x2="${W - padR}" y2="${gy}" stroke="#263566" stroke-width="1" stroke-dasharray="3 4"/>`;
+    out += `<text x="${padL - 8}" y="${gy + 4}" fill="#93a0c4" font-size="11" text-anchor="end">${shortNum(v)}</text>`;
+  }
+  const xt = Math.min(10, Math.ceil(maxX));
+  for (let i = 0; i <= xt; i++) {
+    const xv = (maxX * i) / xt;
+    out += `<text x="${X(xv)}" y="${H - 8}" fill="#93a0c4" font-size="11" text-anchor="middle">${Math.round(xv)}y</text>`;
+  }
+  series.forEach(s => {
+    const d = s.pts.map(([x, y], i) => `${i ? "L" : "M"}${X(x).toFixed(1)},${Y(y).toFixed(1)}`).join(" ");
+    if (s.fill) {
+      const last = s.pts[s.pts.length - 1], first = s.pts[0];
+      out += `<path d="${d} L${X(last[0]).toFixed(1)},${Y(0)} L${X(first[0]).toFixed(1)},${Y(0)} Z" fill="${s.color}" opacity="0.12"/>`;
+    }
+    out += `<path d="${d}" fill="none" stroke="${s.color}" stroke-width="2.5" stroke-linejoin="round"/>`;
+  });
+  if (opts.hline) {
+    out += `<line x1="${padL}" y1="${Y(opts.hline)}" x2="${W - padR}" y2="${Y(opts.hline)}" stroke="#f5c542" stroke-width="2" stroke-dasharray="6 5"/>`;
+  }
+  if (opts.vline != null) {
+    out += `<line x1="${X(opts.vline)}" y1="${padT}" x2="${X(opts.vline)}" y2="${padT + ih}" stroke="#38d996" stroke-width="1.5" stroke-dasharray="4 4"/>`;
+  }
+  svg.innerHTML = out;
+}
+function shortNum(v) {
+  if (v >= 1e6) return "$" + (v / 1e6).toFixed(1) + "M";
+  if (v >= 1e3) return "$" + Math.round(v / 1e3) + "k";
+  return "$" + Math.round(v);
+}
+function stat(k, v, cls = "", hint = "") {
+  return `<div class="stat"><div class="k">${k}</div><div class="v ${cls}">${v}</div>${hint ? `<div class="hint">${hint}</div>` : ""}</div>`;
+}
+
+/* ── compound interest ────────────────────────────────── */
+function calcCompound() {
+  const p0 = val("ci-p0"), pmt = val("ci-pmt"), r = val("ci-r") / 100, years = Math.max(1, Math.round(val("ci-y"))), freq = parseInt($("ci-freq").value);
+  setLabel("ci-p0", fmt(p0)); setLabel("ci-pmt", fmt(pmt) + "/mo"); setLabel("ci-r", pct(val("ci-r"))); setLabel("ci-y", years + " yrs");
+
+  let bal = p0, contrib = p0;
+  const pts = [[0, p0]], contribPts = [[0, p0]], interestPts = [[0, 0]], rows = [];
+  const periodRate = r / freq, monthsPerPeriod = 12 / freq;
+  for (let y = 1; y <= years; y++) {
+    for (let p = 0; p < freq; p++) {
+      bal += pmt * monthsPerPeriod;
+      contrib += pmt * monthsPerPeriod;
+      bal *= 1 + periodRate;
+    }
+    pts.push([y, bal]); contribPts.push([y, contrib]); interestPts.push([y, bal - contrib]);
+    rows.push([y, contrib, bal - contrib, bal]);
+  }
+  const interest = bal - contrib;
+  $("ci-results").innerHTML =
+    stat("Final balance", fmt(bal), "blue") +
+    stat("Total contributed", fmt(contrib), "gold") +
+    stat("Interest earned", fmt(interest), "green", contrib > 0 ? Math.round((interest / contrib) * 100) + "% growth on contributions" : "");
+  drawChart("ci-chart", [
+    { pts, color: "#4f8cff", fill: true },
+    { pts: contribPts, color: "#f5c542" },
+    { pts: interestPts, color: "#38d996" }
+  ]);
+  $("ci-table").innerHTML = "<tr><th>Year</th><th>Contributed</th><th>Interest</th><th>Balance</th></tr>" +
+    rows.map(r2 => `<tr><td>${r2[0]}</td><td>${fmt(r2[1])}</td><td>${fmt(r2[2])}</td><td><b>${fmt(r2[3])}</b></td></tr>`).join("");
+}
+
+/* ── dividend income ──────────────────────────────────── */
+function calcDividend() {
+  const p0 = val("dv-p0"), pmt = val("dv-pmt"), y0 = val("dv-yield") / 100, dg = val("dv-dg") / 100,
+        pa = val("dv-pa") / 100, years = Math.max(1, Math.round(val("dv-y"))), drip = $("dv-drip").value === "1";
+  setLabel("dv-p0", fmt(p0)); setLabel("dv-pmt", fmt(pmt) + "/mo"); setLabel("dv-yield", pct(val("dv-yield")));
+  setLabel("dv-dg", pct(val("dv-dg"))); setLabel("dv-pa", pct(val("dv-pa"))); setLabel("dv-y", years + " yrs");
+
+  let port = p0, yieldNow = y0, totalDivs = 0, incomeYr = 0;
+  const incPts = [[0, p0 * y0]], portPts = [[0, p0]], rows = [];
+  for (let y = 1; y <= years; y++) {
+    incomeYr = 0;
+    for (let m = 0; m < 12; m++) {
+      port += pmt;
+      const monthlyDiv = port * yieldNow / 12;
+      incomeYr += monthlyDiv; totalDivs += monthlyDiv;
+      if (drip) port += monthlyDiv;
+      port *= Math.pow(1 + pa, 1 / 12);
+    }
+    yieldNow *= (1 + dg) / (1 + pa); // dividend grows dg; price appreciation dilutes yield
+    incPts.push([y, incomeYr]); portPts.push([y, port]);
+    rows.push([y, incomeYr, incomeYr / 12, port]);
+  }
+  $("dv-results").innerHTML =
+    stat("Annual dividend income (final year)", fmt(incomeYr), "green", "≈ " + fmt(incomeYr / 12) + " per month") +
+    stat("Portfolio value", fmt(port), "blue") +
+    stat("Total dividends collected", fmt(totalDivs), "gold", drip ? "reinvested via DRIP" : "taken as cash");
+  const maxInc = Math.max(...incPts.map(p => p[1])) || 1;
+  const maxPort = Math.max(...portPts.map(p => p[1])) || 1;
+  drawChart("dv-chart", [
+    { pts: incPts, color: "#38d996", fill: true },
+    { pts: portPts.map(([x, v]) => [x, v * maxInc / maxPort]), color: "#4f8cff" }
+  ]);
+  $("dv-table").innerHTML = "<tr><th>Year</th><th>Dividends/yr</th><th>Per month</th><th>Portfolio</th></tr>" +
+    rows.map(r2 => `<tr><td>${r2[0]}</td><td><b>${fmt(r2[1])}</b></td><td>${fmt(r2[2])}</td><td>${fmt(r2[3])}</td></tr>`).join("");
+}
+
+/* ── FIRE ─────────────────────────────────────────────── */
+function calcFire() {
+  const age = Math.round(val("fi-age")), p0 = val("fi-p0"), spend = val("fi-spend"),
+        pmt = val("fi-pmt"), r = val("fi-r") / 100, swr = val("fi-swr") / 100;
+  setLabel("fi-age", age + " yrs"); setLabel("fi-p0", fmt(p0)); setLabel("fi-spend", fmt(spend) + "/yr");
+  setLabel("fi-pmt", fmt(pmt) + "/mo"); setLabel("fi-r", pct(val("fi-r"))); setLabel("fi-swr", pct(val("fi-swr")));
+
+  const fireNum = swr > 0 ? spend / swr : Infinity;
+  let bal = p0, yearsTo = null;
+  const pts = [[0, p0]], horizon = 60;
+  for (let y = 1; y <= horizon; y++) {
+    for (let m = 0; m < 12; m++) { bal += pmt; bal *= Math.pow(1 + r, 1 / 12); }
+    pts.push([y, bal]);
+    if (yearsTo === null && bal >= fireNum) yearsTo = y;
+  }
+  const reached = yearsTo !== null;
+  const fireAge = reached ? age + yearsTo : null;
+  $("fi-results").innerHTML =
+    stat("FIRE number", fmt(fireNum), "gold", pct(val("fi-swr")) + " withdrawal covers " + fmt(spend) + "/yr") +
+    stat("Years to FIRE", reached ? yearsTo + " yrs" : "50+ yrs", reached ? "green" : "red") +
+    stat("Retirement age", reached ? fireAge : "—", "blue") +
+    stat("Progress today", pct(Math.min(100, (p0 / fireNum) * 100)), "green");
+  const shown = reached ? Math.min(horizon, yearsTo + 5) : Math.min(horizon, 40);
+  drawChart("fi-chart", [{ pts: pts.slice(0, shown + 1), color: "#4f8cff", fill: true }],
+    { hline: fireNum, vline: reached && yearsTo <= shown ? yearsTo : null });
+  const v = $("fi-verdict");
+  if (reached) {
+    v.className = "verdict good";
+    v.innerHTML = `🎉 On this path you reach financial independence at <b>age ${fireAge}</b> (${yearsTo} years). Every extra $100/month invested typically shaves months off the date — try the slider.`;
+  } else {
+    v.className = "verdict bad";
+    v.innerHTML = `⏳ At the current savings rate you won't hit your FIRE number within 50 years. Increase monthly investing, reduce planned spending, or adjust the withdrawal rate to see what changes.`;
+  }
+}
+
+/* ── rental ROI ───────────────────────────────────────── */
+function calcRental() {
+  const price = val("re-price"), downPct = val("re-down") / 100, rate = val("re-rate") / 100,
+        term = parseInt($("re-term").value), rent = val("re-rent"), exp = val("re-exp"),
+        vac = val("re-vac") / 100, closing = val("re-close");
+  setLabel("re-price", fmt(price)); setLabel("re-down", pct(val("re-down")) + " = " + fmt(price * downPct));
+  setLabel("re-rate", pct(val("re-rate"))); setLabel("re-rent", fmt(rent) + "/mo");
+  setLabel("re-exp", fmt(exp) + "/mo"); setLabel("re-vac", pct(val("re-vac"))); setLabel("re-close", fmt(closing));
+
+  const loan = price * (1 - downPct);
+  const mRate = rate / 12, n = term * 12;
+  const mortgage = loan > 0 ? (mRate > 0 ? loan * mRate / (1 - Math.pow(1 + mRate, -n)) : loan / n) : 0;
+  const effRent = rent * (1 - vac);
+  const cashFlow = effRent - exp - mortgage;
+  const noi = (effRent - exp) * 12;
+  const capRate = price > 0 ? (noi / price) * 100 : 0;
+  const cashIn = price * downPct + closing;
+  const coc = cashIn > 0 ? (cashFlow * 12 / cashIn) * 100 : 0;
+  const grossYield = price > 0 ? (rent * 12 / price) * 100 : 0;
+
+  $("re-results").innerHTML =
+    stat("Monthly cash flow", fmtC(cashFlow), cashFlow >= 0 ? "green" : "red", fmt(cashFlow * 12) + " / year") +
+    stat("Cash-on-cash return", coc.toFixed(1) + "%", coc >= 8 ? "green" : coc >= 4 ? "gold" : "red", "on " + fmt(cashIn) + " invested") +
+    stat("Cap rate", capRate.toFixed(1) + "%", "blue", "NOI " + fmt(noi) + "/yr") +
+    stat("Mortgage payment", fmtC(mortgage), "", term + "-yr loan of " + fmt(loan));
+  $("re-table").innerHTML =
+    `<tr><th>Monthly line item</th><th>Amount</th></tr>
+     <tr><td>Rent (after ${Math.round(vac * 100)}% vacancy)</td><td>${fmtC(effRent)}</td></tr>
+     <tr><td>Operating expenses</td><td>−${fmtC(exp)}</td></tr>
+     <tr><td>Mortgage (P&amp;I)</td><td>−${fmtC(mortgage)}</td></tr>
+     <tr><td><b>Net cash flow</b></td><td><b>${fmtC(cashFlow)}</b></td></tr>
+     <tr><td>Gross rental yield</td><td>${grossYield.toFixed(1)}%</td></tr>`;
+  const v = $("re-verdict");
+  if (cashFlow > 0 && coc >= 8) { v.className = "verdict good"; v.innerHTML = `✅ <b>Strong deal on paper</b> — positive cash flow and a ${coc.toFixed(1)}% cash-on-cash return beats the common 8% benchmark. Verify rents, taxes and repair estimates before offering.`; }
+  else if (cashFlow > 0) { v.className = "verdict"; v.innerHTML = `🟡 <b>Cash-flow positive but modest</b> — ${coc.toFixed(1)}% cash-on-cash is below the ~8% many investors target. Negotiating price or raising rent changes this quickly.`; }
+  else { v.className = "verdict bad"; v.innerHTML = `⚠️ <b>Negative cash flow</b> — you'd pay ${fmtC(-cashFlow)}/month out of pocket. This only works if you're betting on strong appreciation.`; }
+}
+
+/* ── savings goal ─────────────────────────────────────── */
+function calcGoal() {
+  const goal = val("go-goal"), p0 = val("go-p0"), years = Math.max(1, Math.round(val("go-y"))), r = val("go-r") / 100;
+  setLabel("go-goal", fmt(goal)); setLabel("go-p0", fmt(p0)); setLabel("go-y", years + " yrs"); setLabel("go-r", pct(val("go-r")));
+
+  const n = years * 12, i = r / 12;
+  const fvP0 = p0 * Math.pow(1 + i, n);
+  const need = Math.max(0, goal - fvP0);
+  const pmt = i > 0 ? need * i / ((Math.pow(1 + i, n) - 1) * (1 + i)) : need / n;
+
+  let bal = p0; const pts = [[0, p0]];
+  for (let y = 1; y <= years; y++) {
+    for (let m = 0; m < 12; m++) { bal += pmt; bal *= 1 + i; }
+    pts.push([y, bal]);
+  }
+  const totalSaved = p0 + pmt * n;
+  $("go-results").innerHTML =
+    stat("Save per month", fmtC(pmt), "green", "to reach " + fmt(goal) + " in " + years + " years") +
+    stat("Total out of pocket", fmt(totalSaved), "gold") +
+    stat("Growth does the rest", fmt(Math.max(0, goal - totalSaved)), "blue", r > 0 ? "earned at " + pct(val("go-r")) + " per year" : "");
+  drawChart("go-chart", [{ pts, color: "#4f8cff", fill: true }], { hline: goal });
+}
+
+/* ── dispatcher, share links, init ────────────────────── */
+const calcs = { compound: calcCompound, dividend: calcDividend, fire: calcFire, rental: calcRental, goal: calcGoal };
+function recalc() { calcs[currentTab](); }
+
+function copyLink() {
+  const ids = pairs.filter(id => id.startsWith(prefixFor(currentTab)));
+  const params = new URLSearchParams({ tab: currentTab });
+  ids.forEach(id => params.set(id, $(id).value));
+  ["ci-freq","dv-drip","re-term"].forEach(id => { if (id.startsWith(prefixFor(currentTab))) params.set(id, $(id).value); });
+  const url = location.origin + location.pathname + "?" + params.toString();
+  navigator.clipboard.writeText(url).then(showToast).catch(() => {
+    const ta = document.createElement("textarea"); ta.value = url; document.body.appendChild(ta);
+    ta.select(); document.execCommand("copy"); ta.remove(); showToast();
+  });
+}
+function prefixFor(tab) { return { compound: "ci-", dividend: "dv-", fire: "fi-", rental: "re-", goal: "go-" }[tab]; }
+function showToast() {
+  const t = $("toast"); t.classList.add("show");
+  setTimeout(() => t.classList.remove("show"), 1800);
+}
+function loadFromURL() {
+  const q = new URLSearchParams(location.search);
+  q.forEach((v2, k) => {
+    const el = $(k);
+    if (el && k !== "tab") { el.value = v2; const r2 = $(k + "-r"); if (r2) r2.value = v2; }
+  });
+  const tab = q.get("tab");
+  if (tab && calcs[tab]) showTab(tab);
+}
+
+$("yr").textContent = new Date().getFullYear();
+loadFromURL();
+Object.values(calcs).forEach(fn => fn());
+</script>
+</body>
+</html>
