@@ -296,6 +296,7 @@
         </div>
         <div class="share-row">
           <button class="btn primary" onclick="copyLink()">🔗 Copy shareable link</button>
+          <button class="btn" onclick="downloadCard()">🖼 Download result image</button>
         </div>
       </div>
       <div>
@@ -360,6 +361,7 @@
         </div>
         <div class="share-row">
           <button class="btn primary" onclick="copyLink()">🔗 Copy shareable link</button>
+          <button class="btn" onclick="downloadCard()">🖼 Download result image</button>
         </div>
       </div>
       <div>
@@ -418,6 +420,7 @@
         </div>
         <div class="share-row">
           <button class="btn primary" onclick="copyLink()">🔗 Copy shareable link</button>
+          <button class="btn" onclick="downloadCard()">🖼 Download result image</button>
         </div>
       </div>
       <div>
@@ -485,6 +488,7 @@
         </div>
         <div class="share-row">
           <button class="btn primary" onclick="copyLink()">🔗 Copy shareable link</button>
+          <button class="btn" onclick="downloadCard()">🖼 Download result image</button>
         </div>
       </div>
       <div>
@@ -526,6 +530,7 @@
         </div>
         <div class="share-row">
           <button class="btn primary" onclick="copyLink()">🔗 Copy shareable link</button>
+          <button class="btn" onclick="downloadCard()">🖼 Download result image</button>
         </div>
       </div>
       <div>
@@ -577,6 +582,7 @@
         </div>
         <div class="share-row">
           <button class="btn primary" onclick="copyLink()">🔗 Copy shareable link</button>
+          <button class="btn" onclick="downloadCard()">🖼 Download result image</button>
         </div>
       </div>
       <div>
@@ -625,6 +631,7 @@
         </div>
         <div class="share-row">
           <button class="btn primary" onclick="copyLink()">🔗 Copy shareable link</button>
+          <button class="btn" onclick="downloadCard()">🖼 Download result image</button>
         </div>
       </div>
       <div>
@@ -678,6 +685,7 @@
         </div>
         <div class="share-row">
           <button class="btn primary" onclick="copyLink()">🔗 Copy shareable link</button>
+          <button class="btn" onclick="downloadCard()">🖼 Download result image</button>
         </div>
       </div>
       <div>
@@ -1284,6 +1292,57 @@ function calcDrawdown() {
     v.className = "verdict bad";
     v.innerHTML = `⚠️ At this pace the portfolio is gone in <b>${fmtMonths(m)}</b> — age ${age + Math.floor(m / 12)}. Reducing the monthly withdrawal by 10–20% typically adds many years; try the slider.`;
   }
+}
+
+/* ── shareable result image (canvas PNG) ──────────────── */
+function roundRect(g, x, y, w, h, r) {
+  g.beginPath();
+  g.moveTo(x + r, y);
+  g.arcTo(x + w, y, x + w, y + h, r);
+  g.arcTo(x + w, y + h, x, y + h, r);
+  g.arcTo(x, y + h, x, y, r);
+  g.arcTo(x, y, x + w, y, r);
+  g.closePath();
+}
+function downloadCard() {
+  const c = document.createElement("canvas");
+  c.width = 1200; c.height = 630;
+  const g = c.getContext("2d");
+  const grad = g.createLinearGradient(0, 0, 1200, 630);
+  grad.addColorStop(0, "#101832"); grad.addColorStop(1, "#0b1020");
+  g.fillStyle = grad; g.fillRect(0, 0, 1200, 630);
+  const rg = g.createRadialGradient(950, 60, 0, 950, 60, 520);
+  rg.addColorStop(0, "rgba(79,140,255,.28)"); rg.addColorStop(1, "rgba(79,140,255,0)");
+  g.fillStyle = rg; g.fillRect(0, 0, 1200, 630);
+  g.font = "bold 46px 'Segoe UI', sans-serif"; g.fillStyle = "#e8ecf8";
+  g.fillText("💰 WealthTools", 70, 100);
+  g.font = "27px 'Segoe UI', sans-serif"; g.fillStyle = "#93a0c4";
+  g.fillText(tabTitles[currentTab], 70, 148);
+  const stats = [...document.querySelectorAll(`#panel-${currentTab} .stat`)].slice(0, 4).map(s2 => ({
+    k: s2.querySelector(".k").textContent,
+    v: s2.querySelector(".v").textContent,
+    color: getComputedStyle(s2.querySelector(".v")).color
+  }));
+  stats.forEach((s2, i) => {
+    const x = 70 + (i % 2) * 545, y = 195 + Math.floor(i / 2) * 165;
+    g.fillStyle = "rgba(27,39,80,.92)"; roundRect(g, x, y, 515, 140, 18); g.fill();
+    g.strokeStyle = "#263566"; g.lineWidth = 1.5; g.stroke();
+    g.font = "19px 'Segoe UI', sans-serif"; g.fillStyle = "#93a0c4";
+    g.fillText(s2.k.toUpperCase().slice(0, 44), x + 28, y + 44);
+    let fs = 46;
+    g.font = `bold ${fs}px 'Segoe UI', sans-serif`;
+    while (g.measureText(s2.v).width > 460 && fs > 22) { fs -= 4; g.font = `bold ${fs}px 'Segoe UI', sans-serif`; }
+    g.fillStyle = s2.color; g.fillText(s2.v, x + 28, y + 104);
+  });
+  g.font = "23px 'Segoe UI', sans-serif"; g.fillStyle = "#5a6689";
+  g.fillText("Free financial calculators · instant · no signup", 70, 585);
+  c.toBlob(b => {
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(b);
+    a.download = "wealthtools-" + currentTab + ".png";
+    a.click();
+    URL.revokeObjectURL(a.href);
+  });
 }
 
 /* ── dispatcher, share links, init ────────────────────── */
