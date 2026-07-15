@@ -98,6 +98,7 @@
   @keyframes fade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 
   .grid { display: grid; grid-template-columns: 380px 1fr; gap: 22px; align-items: start; }
+  .grid > * { min-width: 0; }
   @media (max-width: 860px) { .grid { grid-template-columns: 1fr; } }
 
   .card {
@@ -139,7 +140,8 @@
   table.breakdown th { color: var(--muted); font-weight: 600; border-bottom: 1px solid var(--border); }
   table.breakdown td { border-bottom: 1px solid rgba(38,53,102,.4); }
   table.breakdown th:first-child, table.breakdown td:first-child { text-align: left; }
-  .table-scroll { max-height: 300px; overflow-y: auto; border-radius: 10px; }
+  .table-scroll { max-height: 300px; overflow: auto; border-radius: 10px; }
+  table.breakdown { white-space: nowrap; }
 
   .adslot {
     margin: 26px 0; border: 1px dashed var(--border); border-radius: var(--radius);
@@ -203,6 +205,8 @@
   #faq summary { cursor: pointer; font-weight: 600; font-size: .95rem; list-style-position: outside; }
   #faq summary:hover { color: var(--accent); }
   #faq details p { color: var(--muted); font-size: .88rem; padding: 10px 6px 4px 18px; max-width: 80ch; }
+
+  :is(input, select, button, summary, a):focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
 
   @media print {
     nav, .adslot, .controls, .share-row, .csv-btn, footer, #affiliate, .seo-copy, #faq, input[type=range] { display: none !important; }
@@ -1250,6 +1254,20 @@ function loadFromURL() {
   const tab = q.get("tab");
   if (tab && calcs[tab]) showTab(tab);
 }
+
+// associate every input/select with its field label for screen readers
+document.querySelectorAll(".field").forEach(f => {
+  const lab = f.querySelector("label");
+  if (!lab) return;
+  const name = (lab.childNodes[0] ? lab.childNodes[0].textContent : lab.textContent).trim();
+  f.querySelectorAll("input, select").forEach(el => {
+    if (!el.getAttribute("aria-label"))
+      el.setAttribute("aria-label", el.type === "range" ? name + " slider" : name);
+  });
+});
+[["db-b","balance"], ["db-r","APR percent"], ["db-m","minimum monthly payment"]].forEach(([p, suffix]) => {
+  for (let i = 1; i <= 3; i++) $(p + i).setAttribute("aria-label", `Debt ${i} ${suffix}`);
+});
 
 $("yr").textContent = new Date().getFullYear();
 applyTheme(localStorage.getItem("wt-theme") ||
