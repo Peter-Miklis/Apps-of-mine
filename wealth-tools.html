@@ -148,6 +148,15 @@
   .seo-copy h2 { color: var(--text); font-size: 1.05rem; margin: 22px 0 8px; }
   .seo-copy p { margin-bottom: 10px; max-width: 75ch; }
 
+  .debt-grid { display: grid; grid-template-columns: 64px 1fr 1fr 1fr; gap: 8px; align-items: center; margin-bottom: 10px; }
+  .debt-grid .dh { color: var(--muted); font-size: .72rem; text-transform: uppercase; letter-spacing: .5px; }
+  .debt-grid input {
+    width: 100%; background: var(--bg2); border: 1px solid var(--border); color: var(--text);
+    padding: 8px 10px; border-radius: 8px; font-size: .92rem; font-family: inherit;
+  }
+  .debt-grid input:focus { outline: none; border-color: var(--accent); }
+  .debt-grid .dn { color: var(--muted); font-size: .85rem; }
+
   .toast {
     position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(80px);
     background: var(--accent2); color: #06251a; font-weight: 700; padding: 12px 22px;
@@ -176,6 +185,8 @@
     <button data-tab="fire">🔥 FIRE Number</button>
     <button data-tab="rental">🏠 Rental ROI</button>
     <button data-tab="goal">🎯 Savings Goal</button>
+    <button data-tab="debt">💳 Debt Payoff</button>
+    <button data-tab="loan">🏦 Loan &amp; Mortgage</button>
   </nav>
 
   <!-- ══════════════════ COMPOUND INTEREST ══════════════════ -->
@@ -456,6 +467,109 @@
     </div>
   </section>
 
+  <!-- ══════════════════ DEBT PAYOFF ══════════════════ -->
+  <section class="panel" id="panel-debt">
+    <div class="grid">
+      <div class="card">
+        <h2>Debt Payoff Calculator</h2>
+        <p class="sub">Compare avalanche vs. snowball and see your debt-free date.</p>
+        <div class="debt-grid">
+          <span class="dh"></span><span class="dh">Balance</span><span class="dh">APR %</span><span class="dh">Min / mo</span>
+          <span class="dn">Debt 1</span>
+          <input type="number" id="db-b1" value="8000" min="0" step="100">
+          <input type="number" id="db-r1" value="22" min="0" max="60" step="0.1">
+          <input type="number" id="db-m1" value="160" min="0" step="10">
+          <span class="dn">Debt 2</span>
+          <input type="number" id="db-b2" value="15000" min="0" step="100">
+          <input type="number" id="db-r2" value="7.5" min="0" max="60" step="0.1">
+          <input type="number" id="db-m2" value="300" min="0" step="10">
+          <span class="dn">Debt 3</span>
+          <input type="number" id="db-b3" value="0" min="0" step="100">
+          <input type="number" id="db-r3" value="0" min="0" max="60" step="0.1">
+          <input type="number" id="db-m3" value="0" min="0" step="10">
+        </div>
+        <p class="sub" style="margin-bottom:14px">Set balance to 0 to ignore a row.</p>
+        <div class="field">
+          <label>Extra payment per month <b id="db-extra-v"></b></label>
+          <input type="number" id="db-extra" value="200" min="0" step="25">
+          <input type="range" id="db-extra-r" min="0" max="3000" step="25" value="200">
+        </div>
+        <div class="field">
+          <label>Payoff strategy</label>
+          <select id="db-strategy">
+            <option value="avalanche" selected>Avalanche — highest APR first (saves most interest)</option>
+            <option value="snowball">Snowball — smallest balance first (quick wins)</option>
+          </select>
+        </div>
+        <div class="share-row">
+          <button class="btn primary" onclick="copyLink()">🔗 Copy shareable link</button>
+        </div>
+      </div>
+      <div>
+        <div class="results" id="db-results"></div>
+        <div class="card chart-card">
+          <svg class="chart" id="db-chart" viewBox="0 0 640 320" role="img" aria-label="Debt payoff chart"></svg>
+          <div class="legend">
+            <span><i style="background:var(--accent2)"></i>Your plan (with extra payment)</span>
+            <span><i style="background:var(--danger)"></i>Minimum payments only</span>
+          </div>
+        </div>
+        <div class="card" style="margin-top:22px">
+          <h2>Payoff order</h2>
+          <div class="verdict" id="db-verdict"></div>
+          <table class="breakdown" id="db-table"></table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════ LOAN / MORTGAGE ══════════════════ -->
+  <section class="panel" id="panel-loan">
+    <div class="grid">
+      <div class="card">
+        <h2>Loan &amp; Mortgage Calculator</h2>
+        <p class="sub">Monthly payment, total interest, and how extra payments shorten the loan.</p>
+        <div class="field">
+          <label>Loan amount <b id="lo-amt-v"></b></label>
+          <input type="number" id="lo-amt" value="300000" min="0" step="5000">
+          <input type="range" id="lo-amt-r" min="1000" max="1500000" step="5000" value="300000">
+        </div>
+        <div class="field">
+          <label>Interest rate (%/yr) <b id="lo-rate-v"></b></label>
+          <input type="number" id="lo-rate" value="6.5" min="0" max="25" step="0.05">
+          <input type="range" id="lo-rate-r" min="0" max="15" step="0.05" value="6.5">
+        </div>
+        <div class="field">
+          <label>Term (years) <b id="lo-y-v"></b></label>
+          <input type="number" id="lo-y" value="30" min="1" max="40" step="1">
+          <input type="range" id="lo-y-r" min="1" max="40" step="1" value="30">
+        </div>
+        <div class="field">
+          <label>Extra payment per month <b id="lo-extra-v"></b></label>
+          <input type="number" id="lo-extra" value="200" min="0" step="25">
+          <input type="range" id="lo-extra-r" min="0" max="3000" step="25" value="200">
+        </div>
+        <div class="share-row">
+          <button class="btn primary" onclick="copyLink()">🔗 Copy shareable link</button>
+        </div>
+      </div>
+      <div>
+        <div class="results" id="lo-results"></div>
+        <div class="card chart-card">
+          <svg class="chart" id="lo-chart" viewBox="0 0 640 320" role="img" aria-label="Loan balance chart"></svg>
+          <div class="legend">
+            <span><i style="background:var(--accent2)"></i>Balance with extra payments</span>
+            <span><i style="background:var(--accent)"></i>Balance on schedule</span>
+          </div>
+        </div>
+        <div class="card" style="margin-top:22px">
+          <h2>Amortization by year (with extra payments)</h2>
+          <div class="table-scroll"><table class="breakdown" id="lo-table"></table></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <!-- ═══ AD SLOT: mid-content ═══════════════════════════════════════════ -->
   <div class="adslot"><b>Ad space</b> — mid-content rectangle (paste your ad unit here)</div>
 
@@ -479,6 +593,8 @@
     <p>Your FIRE (Financial Independence, Retire Early) number is the portfolio size at which a safe withdrawal rate — commonly 4% — covers your annual spending forever. Spend $40,000 a year and your FIRE number is about $1,000,000. Lowering annual spending is the fastest way to shrink the target.</p>
     <h2>Evaluating a rental property</h2>
     <p>Three numbers tell you most of the story: <b>monthly cash flow</b> (rent minus all costs and mortgage), <b>cap rate</b> (net operating income ÷ purchase price), and <b>cash-on-cash return</b> (annual cash flow ÷ cash invested). Many investors look for positive cash flow from day one and a cash-on-cash return above 6–8%.</p>
+    <h2>Avalanche vs. snowball: which debt payoff method wins?</h2>
+    <p>The <b>avalanche</b> method targets the highest-APR debt first and always minimizes total interest paid. The <b>snowball</b> method targets the smallest balance first — mathematically slightly costlier, but the quick wins keep many people motivated to finish. The debt calculator above shows the exact dollar difference for your debts, so you can decide if the motivation is worth the price.</p>
     <h2>Is dividend investing really passive income?</h2>
     <p>Dividend portfolios pay you in cash on a schedule, making them one of the most genuinely passive income streams available. Reinvesting dividends (DRIP) during the growth years and switching to cash payouts later is the classic playbook — the calculator above models both modes.</p>
   </div>
@@ -491,7 +607,7 @@
       </div>
       <div>
         <h3>Calculators</h3>
-        <p><a href="#" onclick="showTab('compound');return false">Compound Interest</a> · <a href="#" onclick="showTab('dividend');return false">Dividend Income</a> · <a href="#" onclick="showTab('fire');return false">FIRE</a> · <a href="#" onclick="showTab('rental');return false">Rental ROI</a> · <a href="#" onclick="showTab('goal');return false">Savings Goal</a></p>
+        <p><a href="#" onclick="showTab('compound');return false">Compound Interest</a> · <a href="#" onclick="showTab('dividend');return false">Dividend Income</a> · <a href="#" onclick="showTab('fire');return false">FIRE</a> · <a href="#" onclick="showTab('rental');return false">Rental ROI</a> · <a href="#" onclick="showTab('goal');return false">Savings Goal</a> · <a href="#" onclick="showTab('debt');return false">Debt Payoff</a> · <a href="#" onclick="showTab('loan');return false">Loan &amp; Mortgage</a></p>
       </div>
       <div>
         <h3>Disclaimer</h3>
@@ -527,14 +643,18 @@ const pairs = [
   "dv-p0","dv-pmt","dv-yield","dv-dg","dv-pa","dv-y",
   "fi-age","fi-p0","fi-spend","fi-pmt","fi-r","fi-swr",
   "re-price","re-down","re-rate","re-rent","re-exp","re-vac","re-close",
-  "go-goal","go-p0","go-y","go-r"
+  "go-goal","go-p0","go-y","go-r",
+  "db-extra",
+  "lo-amt","lo-rate","lo-y","lo-extra"
 ];
 pairs.forEach(id => {
   const num = $(id), rng = $(id + "-r");
   num.addEventListener("input", () => { rng.value = num.value; recalc(); });
   rng.addEventListener("input", () => { num.value = rng.value; recalc(); });
 });
-["ci-freq","dv-drip","re-term"].forEach(id => $(id).addEventListener("change", recalc));
+["ci-freq","dv-drip","re-term","db-strategy"].forEach(id => $(id).addEventListener("change", recalc));
+// plain inputs without a paired slider (debt rows)
+["db-b1","db-r1","db-m1","db-b2","db-r2","db-m2","db-b3","db-r3","db-m3"].forEach(id => $(id).addEventListener("input", recalc));
 
 const val = id => parseFloat($(id).value) || 0;
 function setLabel(id, text) { const el = $(id + "-v"); if (el) el.textContent = text; }
@@ -752,22 +872,155 @@ function calcGoal() {
   drawChart("go-chart", [{ pts, color: "#4f8cff", fill: true }], { hline: goal });
 }
 
+/* ── debt payoff ──────────────────────────────────────── */
+function readDebts() {
+  const debts = [];
+  for (let i = 1; i <= 3; i++) {
+    const b = val("db-b" + i);
+    if (b > 0) debts.push({ name: "Debt " + i, bal: b, apr: val("db-r" + i) / 100, min: val("db-m" + i) });
+  }
+  return debts;
+}
+function simulateDebts(debts, extra, strategy) {
+  // returns { months, totalInterest, pts:[[yr,totalBal]], order:[{name, month}] , stalled }
+  const ds = debts.map(d => ({ ...d }));
+  const order = [];
+  const pts = [[0, ds.reduce((s, d) => s + d.bal, 0)]];
+  let totalInterest = 0, m = 0;
+  const cap = 600;
+  const rank = () => ds.filter(d => d.bal > 0).sort((a, b) =>
+    strategy === "snowball" ? a.bal - b.bal : b.apr - a.apr)[0];
+  while (ds.some(d => d.bal > 0) && m < cap) {
+    m++;
+    let budget = extra;
+    ds.forEach(d => {
+      if (d.bal <= 0) { budget += d.min; return; } // freed-up minimums roll over
+      const interest = d.bal * d.apr / 12;
+      totalInterest += interest;
+      d.bal += interest;
+      const pay = Math.min(d.min, d.bal);
+      d.bal -= pay;
+      budget += Math.max(0, d.min - pay);
+    });
+    let target = rank();
+    while (budget > 0 && target) {
+      const pay = Math.min(budget, target.bal);
+      target.bal -= pay; budget -= pay;
+      target = rank();
+    }
+    ds.forEach(d => {
+      if (d.bal <= 0.005 && !order.find(o => o.name === d.name)) { d.bal = 0; order.push({ name: d.name, month: m }); }
+    });
+    if (m % 3 === 0 || !ds.some(d => d.bal > 0)) pts.push([m / 12, ds.reduce((s, d) => s + d.bal, 0)]);
+  }
+  return { months: m, totalInterest, pts, order, stalled: ds.some(d => d.bal > 0) };
+}
+function fmtMonths(m) {
+  const y = Math.floor(m / 12), mo = m % 12;
+  return (y ? y + " yr " : "") + mo + " mo";
+}
+function calcDebt() {
+  const extra = val("db-extra"), strategy = $("db-strategy").value;
+  setLabel("db-extra", fmt(extra) + "/mo");
+  const debts = readDebts();
+  if (!debts.length) {
+    $("db-results").innerHTML = stat("No debts entered", "—", "", "Add a balance above to begin");
+    $("db-chart").innerHTML = ""; $("db-table").innerHTML = "";
+    $("db-verdict").className = "verdict"; $("db-verdict").textContent = "Enter at least one debt balance to see your payoff plan.";
+    return;
+  }
+  const plan = simulateDebts(debts, extra, strategy);
+  const baseline = simulateDebts(debts, 0, strategy);
+  const saved = baseline.totalInterest - plan.totalInterest;
+  $("db-results").innerHTML =
+    stat("Debt-free in", plan.stalled ? "50+ yrs" : fmtMonths(plan.months), plan.stalled ? "red" : "green",
+      plan.stalled ? "" : "vs " + (baseline.stalled ? "50+ yrs" : fmtMonths(baseline.months)) + " on minimums only") +
+    stat("Total interest paid", fmt(plan.totalInterest), "gold") +
+    stat("Interest saved by extra payments", fmt(Math.max(0, saved)), "green", extra > 0 ? "thanks to " + fmt(extra) + "/mo extra" : "");
+  drawChart("db-chart", [
+    { pts: baseline.pts, color: "#ff6b81" },
+    { pts: plan.pts, color: "#38d996", fill: true }
+  ]);
+  $("db-table").innerHTML = "<tr><th>Paid off</th><th>Debt</th><th>Month</th></tr>" +
+    plan.order.map((o, i) => `<tr><td>${i + 1}.</td><td>${o.name}</td><td>${fmtMonths(o.month)}</td></tr>`).join("");
+  const v = $("db-verdict");
+  if (plan.stalled) {
+    v.className = "verdict bad";
+    v.innerHTML = "⚠️ Payments don't cover the interest — the balance never reaches zero. Increase the minimums or the extra payment.";
+  } else {
+    const alt = simulateDebts(debts, extra, strategy === "avalanche" ? "snowball" : "avalanche");
+    const diff = alt.totalInterest - plan.totalInterest;
+    v.className = "verdict good";
+    if (Math.abs(diff) < 1) {
+      v.innerHTML = `✅ On these debts both strategies pay off in the same order — you're already on the cheapest path.`;
+    } else {
+      v.innerHTML = strategy === "avalanche"
+        ? `✅ Avalanche saves you <b>${fmt(Math.max(0, diff))}</b> in interest compared to snowball on these debts.`
+        : `🟡 Snowball gives faster wins, but avalanche would save <b>${fmt(Math.max(0, -diff))}</b> more interest on these debts.`;
+    }
+  }
+}
+
+/* ── loan / mortgage ──────────────────────────────────── */
+function amortize(amount, rate, years, extra) {
+  const i = rate / 12, n = years * 12;
+  const pmt = amount > 0 ? (i > 0 ? amount * i / (1 - Math.pow(1 + i, -n)) : amount / n) : 0;
+  let bal = amount, m = 0, totalInterest = 0;
+  const pts = [[0, bal]], rows = [];
+  let yrPrincipal = 0, yrInterest = 0;
+  while (bal > 0.005 && m < n + 1) {
+    m++;
+    const interest = bal * i;
+    totalInterest += interest; yrInterest += interest;
+    let principal = Math.min(pmt - interest + extra, bal);
+    if (principal < 0) principal = 0;
+    bal -= principal; yrPrincipal += principal;
+    if (m % 12 === 0 || bal <= 0.005) {
+      pts.push([m / 12, bal]);
+      rows.push([Math.ceil(m / 12), yrPrincipal, yrInterest, bal]);
+      yrPrincipal = 0; yrInterest = 0;
+    }
+  }
+  return { pmt, months: m, totalInterest, pts, rows };
+}
+function calcLoan() {
+  const amt = val("lo-amt"), rate = val("lo-rate") / 100, years = Math.max(1, Math.round(val("lo-y"))), extra = val("lo-extra");
+  setLabel("lo-amt", fmt(amt)); setLabel("lo-rate", pct(val("lo-rate")));
+  setLabel("lo-y", years + " yrs"); setLabel("lo-extra", fmt(extra) + "/mo");
+  const withExtra = amortize(amt, rate, years, extra);
+  const schedule = amortize(amt, rate, years, 0);
+  const savedInt = schedule.totalInterest - withExtra.totalInterest;
+  const savedMonths = schedule.months - withExtra.months;
+  $("lo-results").innerHTML =
+    stat("Monthly payment", fmtC(withExtra.pmt + extra), "blue",
+      extra > 0 ? fmtC(withExtra.pmt) + " required + " + fmt(extra) + " extra" : "principal & interest") +
+    stat("Paid off in", fmtMonths(withExtra.months), "green",
+      extra > 0 && savedMonths > 0 ? fmtMonths(savedMonths) + " sooner than scheduled" : years + "-year schedule") +
+    stat("Total interest", fmt(withExtra.totalInterest), "gold",
+      extra > 0 && savedInt > 0 ? "saves " + fmt(savedInt) + " vs schedule" : "") +
+    stat("Total cost", fmt(amt + withExtra.totalInterest), "");
+  drawChart("lo-chart", [
+    { pts: schedule.pts, color: "#4f8cff" },
+    { pts: withExtra.pts, color: "#38d996", fill: true }
+  ]);
+  $("lo-table").innerHTML = "<tr><th>Year</th><th>Principal paid</th><th>Interest paid</th><th>Balance</th></tr>" +
+    withExtra.rows.map(r2 => `<tr><td>${r2[0]}</td><td>${fmt(r2[1])}</td><td>${fmt(r2[2])}</td><td><b>${fmt(r2[3])}</b></td></tr>`).join("");
+}
+
 /* ── dispatcher, share links, init ────────────────────── */
-const calcs = { compound: calcCompound, dividend: calcDividend, fire: calcFire, rental: calcRental, goal: calcGoal };
+const calcs = { compound: calcCompound, dividend: calcDividend, fire: calcFire, rental: calcRental, goal: calcGoal, debt: calcDebt, loan: calcLoan };
 function recalc() { calcs[currentTab](); }
 
 function copyLink() {
-  const ids = pairs.filter(id => id.startsWith(prefixFor(currentTab)));
   const params = new URLSearchParams({ tab: currentTab });
-  ids.forEach(id => params.set(id, $(id).value));
-  ["ci-freq","dv-drip","re-term"].forEach(id => { if (id.startsWith(prefixFor(currentTab))) params.set(id, $(id).value); });
+  document.querySelectorAll(`#panel-${currentTab} input[type=number], #panel-${currentTab} select`)
+    .forEach(el => { if (el.id) params.set(el.id, el.value); });
   const url = location.origin + location.pathname + "?" + params.toString();
   navigator.clipboard.writeText(url).then(showToast).catch(() => {
     const ta = document.createElement("textarea"); ta.value = url; document.body.appendChild(ta);
     ta.select(); document.execCommand("copy"); ta.remove(); showToast();
   });
 }
-function prefixFor(tab) { return { compound: "ci-", dividend: "dv-", fire: "fi-", rental: "re-", goal: "go-" }[tab]; }
 function showToast() {
   const t = $("toast"); t.classList.add("show");
   setTimeout(() => t.classList.remove("show"), 1800);
